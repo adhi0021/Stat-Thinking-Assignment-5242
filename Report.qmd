@@ -10,6 +10,7 @@ library(MASS)
 library(patchwork)
 data <- read.csv("data/movies.csv")
 ```
+
 ```{r}
 target_cols <- c("budget", "roi", "franchise_status")
 
@@ -250,4 +251,11 @@ check
 Both methods to calculate the confidence interval use the bootstrapped sample, which assumes the sample of Action films is representative of the population. Overall, the results were similar with the percentile interval (0.463, 0.679) and the standard error interval (0.460, 0.693) overlapping significantly. 
 
 The percentile method does not consider symmetry as it takes the 2.5th and 97.5th percentiles directly from the bootstrapped distribution, while the bootstrapped standard error method assumes the distribution is symmetric and approximately bell-shaped which places the lower and upper bounds equidistant from the observed 25th percentile (0.576). The Standard Error method slightly overstated the upper bound in comparison to the percentile bootstrap estimate while maintaining similar estimates for the lower bound. This may have been because the bootstrapped distribution is slightly left skewed where the percentile bootstrap method displays a larger gap between the observed estimate and the lower bound than the upper bound. The Standard error method also had a larger width in the confidence interval likely due to the larger tails, which increase the estimated Standard Error as a result. Since the percentile method does not rely on the symmetry assumption being accurate, it is best to use this method although both methods yielded similar results.
+
+### 3d
+
+Based on the analysis, it is recommended to select the Gamma distribution for the simulation. It had the best fit for the budget data as it matched the QQ-plot reference line the closest and had the lowest AIC value after evaluating five different models. It captured the right skew in budgets where few movie budgets had more expensive budgets compared to the majority of movies. 
+
+In this sample, 25% of action films had an ROI of 0.576 or lower. We are 95% confident the true 25th percentile of the ROI for all action films across all studios lies between 0.463 and 0.679. For a conservative risk figure to plan around, Finance should consider 0.463 (46.3% return) for an underperforming Action film. 
+
 
