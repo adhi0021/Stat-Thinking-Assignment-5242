@@ -152,3 +152,78 @@ AIC(
 ```
 Gamma has lowest AIC, therefore it is the best model paird with the result of qq plot (1:00 - 2:00 15/10/26)
 
+
+###  3b
+
+Goal: Find  mean of ROI of all action films in last quarter of the year across all studios. 
+
+```{r}
+action_roi <- data |> 
+  filter(primary_genre == "Action", !is.na(roi)) |> 
+  pull(roi) 
+
+#observed ROI at 25% percentile
+observed_q <- quantile(action_roi, 0.25)
+observed_q
+#Bootstrap Test
+set.seed(5242)
+
+bootstrap_results <- tibble(
+  replicate = 1:1000
+) |>
+  mutate(
+    boot_q = map_dbl(replicate, function(i) {
+      action_boot <- sample(
+        x = action_roi,
+        size = length(action_roi),
+        replace = TRUE
+      )
+
+      quantile(action_boot, probs = 0.25)
+    })
+  )
+
+bootstrap_ci <- bootstrap_results |>
+  summarise(
+    lower = quantile(boot_q, probs = 0.025),
+    upper = quantile(boot_q, probs = 0.975)
+  )
+
+bootstrap_ci
+
+ggplot(bootstrap_results, aes(x = boot_q)) +
+  geom_histogram(boundary = 0) +
+  geom_vline(
+    xintercept = observed_q,
+    linewidth = 1,
+    linetype = "dashed"
+  ) +
+  geom_vline(
+    xintercept = c(bootstrap_ci$lower, bootstrap_ci$upper),
+    linewidth = 1
+  )+
+  labs(
+    x = "Bootstrap in 25% quantiles",
+    y = "Number of bootstrap samples",
+    title = "Bootstrap distribution",
+    subtitle = "Dashed line shows the observed difference"
+  ) +
+  theme_minimal()
+
+```
+```{r}
+#Method 2: SE mulltiplier
+t_multiplier <- qt(0.975, df = length(action_roi) - 1)
+
+bootstrap_se_ci <- bootstrap_results |>
+  summarise(
+    boot_se = sd(boot_q),
+    lower = observed_q - t_multiplier * boot_se,
+    upper = observed_q + t_multiplier * boot_se
+  )
+
+bootstrap_se_ci
+
+```
+
+
