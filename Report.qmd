@@ -5,25 +5,13 @@ format: html
 execute:
   echo: false
 ---
-```{r, warning = FALSE}
+```{r, warning = FALSE, include = FALSE}
 library(tidyverse)
 library(ggplot2)
 library(MASS)
 library(patchwork)
 data <- read.csv("data/movies.csv")
 ```
-
-```{r}
-target_cols <- c("budget", "roi", "franchise_status")
-
-movie_data <- movie_data_raw |>
-  select(all_of(target_cols)) |> 
-  mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
-  mutate(
-    franchise_status = factor(franchise_status)
-  )
-```
-
 
 ## Question 3
 ### Q3a)
@@ -44,7 +32,7 @@ ggplot(universal, aes(x = budget,)) +
 
 The budget distribution is right skewed and only contain positive values. Therfore, exponential, Gamma, Log normal and  Weibull distribution can be selected for model evaluation. 
 
-```{r}
+```{r, warning = FALSE}
 #Fit plot
 budget_normal <- fitdistr(
   universal$budget,
@@ -73,7 +61,10 @@ budget_lognormal <- fitdistr(
 )
 
 ```
+
 ```{r}
+#| fig-width: 5
+#| fig-height: 3
 #qqplot
 qq_normal <- 
   ggplot(universal, aes(sample = budget)) +
