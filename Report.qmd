@@ -2,8 +2,10 @@
 title: Assignment-2
 author: Group-036
 format: html
+execute:
+  echo: false
 ---
-```{r}
+```{r, warning = FALSE}
 library(tidyverse)
 library(ggplot2)
 library(MASS)
@@ -26,18 +28,21 @@ movie_data <- movie_data_raw |>
 ## Question 3
 ### Q3a)
 
-```{r}
+```{r, warning = FALSE}
+#| fig-width: 5
+#| fig-height: 3
 #Check distribution
 universal <- data |> 
   filter(primary_company == "Universal Pictures" & budget > 0) |> 
   mutate(budget = budget/1e6  )
 
 ggplot(universal, aes(x = budget,)) + 
-  geom_histogram()
+  geom_histogram(binwidth = 10)+
+  labs(title = "Distribution of Universal Pictures Film Budgets")
 
 ```
 
-The budget distribution is right skewed and only contain positive values. Can choose between exponential, Gamma, Log normal and  Weibull distribution
+The budget distribution is right skewed and only contain positive values. Therfore, exponential, Gamma, Log normal and  Weibull distribution can be selected for model evaluation. 
 
 ```{r}
 #Fit plot
@@ -67,11 +72,6 @@ budget_lognormal <- fitdistr(
   densfun = "lognormal"
 )
 
-budget_normal
-budget_exp
-budget_gamma
-budget_weibull
-budget_lognormal
 ```
 ```{r}
 #qqplot
@@ -138,7 +138,7 @@ qq_lognormal <-
 qq_normal+ qq_exponential + qq_gamma + qq_weibull + qq_lognormal
 ```
 
-qq plot indicates normal and log normal worst fits as tails deviate the most from the linear line. Exponential and Gamma have the best fist as the right tail have the smallest distance and most of the points follow a linear pattern. Indicates nminimal presence of homoskedassticity
+The qq plot indicates normal and log normal are the worst fits as tails deviate the most from the reference line. The Exponential and Gamma model have the best fist as the right tail have the smallest distance from the reference line and most of the points overlap with the line.
 
 ```{r}
 #fit AIC
@@ -151,14 +151,13 @@ AIC(
 ) |> 
   arrange(AIC)
 ```
-Gamma has lowest AIC, therefore it is the best model paird with the result of qq plot (1:00 - 2:00 15/10/26)
-
+The Gamma model has lowest AIC, which paired with the fitting of the qqplot, which suggests that it is the best at fitting budget data. 
 
 ###  3b
 
-Goal: Find  mean of ROI of all action films in last quarter of the year across all studios. 
-
 ```{r}
+#| fig-width: 5
+#| fig-height: 3
 action_roi <- data |> 
   filter(primary_genre == "Action", !is.na(roi)) |> 
   pull(roi) 
