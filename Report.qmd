@@ -14,6 +14,16 @@ library(gt)
 data <- read.csv("data/movies.csv")
 ```
 
+```{r}
+target_cols <- c("budget", "roi", "franchise_status")
+movie_data <- movie_data_raw |>
+  select(all_of(target_cols)) |> 
+  mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
+  mutate(
+    franchise_status = factor(franchise_status)
+  )
+```
+
 ## Task 3
 ### Part 1: Production Budget Modelling
 With the goal to construct a model that models an appropriate movie budget distribution, a competitor budget analysis was conducted as a credible reference point in line with industry standards. This was performed by sampling the budgeting model from Universal Pictures Studios, which is a direct industry competitor, and fitting a realistic probability model for Meridian to follow. 
