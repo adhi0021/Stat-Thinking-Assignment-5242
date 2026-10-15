@@ -226,4 +226,28 @@ bootstrap_se_ci
 
 ```
 
+### 3c
+```{r}
+check <- tibble(
+  method = c("Percentile bootstrap", "Bootstrap SE (t)"),
+  gap_below = c(
+    observed_q - bootstrap_ci$lower,
+    observed_q - bootstrap_se_ci$lower
+  ),
+  gap_above = c(
+    bootstrap_ci$upper - observed_q,
+    bootstrap_se_ci$upper - observed_q
+  ),
+  width = c(
+    bootstrap_ci$upper- bootstrap_ci$lower,
+    bootstrap_se_ci$upper- bootstrap_se_ci$lower
+  )
+)
+
+check
+```
+
+Both methods to calculate the confidence interval use the bootstrapped sample, which assumes the sample of Action films is representative of the population. Overall, the results were similar with the percentile interval (0.463, 0.679) and the standard error interval (0.460, 0.693) overlapping significantly. 
+
+The percentile method does not consider symmetry as it takes the 2.5th and 97.5th percentiles directly from the bootstrapped distribution, while the bootstrapped standard error method assumes the distribution is symmetric and approximately bell-shaped which places the lower and upper bounds equidistant from the observed 25th percentile (0.576). The Standard Error method slightly overstated the upper bound in comparison to the percentile bootstrap estimate while maintaining similar estimates for the lower bound. This may have been because the bootstrapped distribution is slightly left skewed where the percentile bootstrap method displays a larger gap between the observed estimate and the lower bound than the upper bound. The Standard error method also had a larger width in the confidence interval likely due to the larger tails, which increase the estimated Standard Error as a result. Since the percentile method does not rely on the symmetry assumption being accurate, it is best to use this method although both methods yielded similar results.
 
