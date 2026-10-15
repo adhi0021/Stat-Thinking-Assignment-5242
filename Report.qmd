@@ -142,22 +142,33 @@ AIC(
   budget_weibull,
   budget_lognormal
 ) |> 
-  arrange(AIC)
+  arrange(AIC) |> 
+  gt()
 ```
 The Gamma model has lowest AIC, which paired with the fitting of the qqplot, which suggests that it is the best at fitting budget data. 
 
-###  3b
+###  Part 2: Downside Risk Analysis for Action Movie ROI
+
+Action movies have been established as capital-intensive to produce, which can be proved as risky for budget investment in order to yield significant revenue. As a result, risk analysis into the bottom performing 25% movie ROI was performed across the entire film industry to model conservative target ROI to aim for, 
 
 ```{r}
-#| fig-width: 5
-#| fig-height: 3
 action_roi <- data |> 
   filter(primary_genre == "Action", !is.na(roi)) |> 
   pull(roi) 
 
 #observed ROI at 25% percentile
 observed_q <- quantile(action_roi, 0.25)
-observed_q
+
+  tibble(
+  statistic = "Observed 25th percentile of Action film ROI",
+  value = observed_q
+) |> 
+  gt()
+
+
+```
+
+```{r}
 #Bootstrap Test
 set.seed(5242)
 
@@ -182,9 +193,37 @@ bootstrap_ci <- bootstrap_results |>
     upper = quantile(boot_q, probs = 0.975)
   )
 
-bootstrap_ci
+#Method 2: SE multiplier
+t_multiplier <- qt(0.975, df = length(action_roi) - 1)
 
-ggplot(bootstrap_results, aes(x = boot_q)) +
+bootstrap_se_ci <- bootstrap_results |>
+  summarise(
+    boot_se = sd(boot_q),
+    lower = observed_q - t_multiplier * boot_se,
+    upper = observed_q + t_multiplier * boot_se
+  )
+
+#Make into table
+tibble(
+  Calculation_method = c("Percentile bootstrap", "Bootstrap SE (t)"),
+  Lower_Bound = c(
+    bootstrap_ci$lower,
+    bootstrap_se_ci$lower
+  ),
+  Upper_bound = c(
+    bootstrap_ci$upper,
+    bootstrap_se_ci$upper
+  )
+) |> 
+  gt()
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 3
+
+#plot bootstrap
+q3plot1 <- ggplot(bootstrap_results, aes(x = boot_q)) +
   geom_histogram(boundary = 0) +
   geom_vline(
     xintercept = observed_q,
@@ -198,28 +237,33 @@ ggplot(bootstrap_results, aes(x = boot_q)) +
   labs(
     x = "Bootstrap in 25% quantiles",
     y = "Number of bootstrap samples",
-    title = "Bootstrap distribution",
+    title = "Bootstrap distribution using Percentile Method",
     subtitle = "Dashed line shows the observed difference"
   ) +
   theme_minimal()
 
+q3plot2 <- ggplot(bootstrap_results, aes(x = boot_q)) +
+  geom_histogram(boundary = 0) +
+  geom_vline(
+    xintercept = observed_q,
+    linewidth = 1,
+    linetype = "dashed"
+  ) +
+  geom_vline(
+    xintercept = c(bootstrap_se_ci$lower, bootstrap_se_ci$upper),
+    linewidth = 1
+  )+
+  labs(
+    x = "Bootstrap in 25% quantiles",
+    y = "Number of bootstrap samples",
+    title = "Bootstrap distribution using Standard Error Method",
+    subtitle = "Dashed line shows the observed difference"
+  ) +
+  theme_minimal()
+q3plot1 + q3plot2
+
 ```
-```{r}
-#Method 2: SE mulltiplier
-t_multiplier <- qt(0.975, df = length(action_roi) - 1)
 
-bootstrap_se_ci <- bootstrap_results |>
-  summarise(
-    boot_se = sd(boot_q),
-    lower = observed_q - t_multiplier * boot_se,
-    upper = observed_q + t_multiplier * boot_se
-  )
-
-bootstrap_se_ci
-
-```
-
-### 3c
 ```{r}
 check <- tibble(
   method = c("Percentile bootstrap", "Bootstrap SE (t)"),
@@ -244,7 +288,7 @@ Both methods to calculate the confidence interval use the bootstrapped sample, w
 
 The percentile method does not consider symmetry as it takes the 2.5th and 97.5th percentiles directly from the bootstrapped distribution, while the bootstrapped standard error method assumes the distribution is symmetric and approximately bell-shaped which places the lower and upper bounds equidistant from the observed 25th percentile (0.576). The Standard Error method slightly overstated the upper bound in comparison to the percentile bootstrap estimate while maintaining similar estimates for the lower bound. This may have been because the bootstrapped distribution is slightly left skewed where the percentile bootstrap method displays a larger gap between the observed estimate and the lower bound than the upper bound. The Standard error method also had a larger width in the confidence interval likely due to the larger tails, which increase the estimated Standard Error as a result. Since the percentile method does not rely on the symmetry assumption being accurate, it is best to use this method although both methods yielded similar results.
 
-### 3d
+### Summary
 
 Based on the analysis, it is recommended to select the Gamma distribution for the simulation. It had the best fit for the budget data as it matched the QQ-plot reference line the closest and had the lowest AIC value after evaluating five different models. It captured the right skew in budgets where few movie budgets had more expensive budgets compared to the majority of movies. 
 
