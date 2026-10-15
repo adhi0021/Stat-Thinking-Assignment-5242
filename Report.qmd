@@ -10,11 +10,13 @@ library(tidyverse)
 library(ggplot2)
 library(MASS)
 library(patchwork)
+library(gt)
 data <- read.csv("data/movies.csv")
 ```
 
-## Question 3
-### Q3a)
+## Task 3
+### Part 1: Production Budget Modelling
+With the goal to construct a model that models an appropriate movie budget distribution, a competitor budget analysis was conducted as a credible reference point in line with industry standards. This was performed by sampling the budgeting model from Universal Pictures Studios, which is a direct industry competitor, and fitting a realistic probability model for Meridian to follow. 
 
 ```{r, warning = FALSE}
 #| fig-width: 5
@@ -30,7 +32,7 @@ ggplot(universal, aes(x = budget,)) +
 
 ```
 
-The budget distribution is right skewed and only contain positive values. Therfore, exponential, Gamma, Log normal and  Weibull distribution can be selected for model evaluation. 
+After data processing, the budget distribution is right skewed and only contain positive values. Therefore, exponential, Gamma, Log normal and  Weibull distribution can be selected for model evaluation. 
 
 ```{r, warning = FALSE}
 #Fit plot
@@ -235,7 +237,7 @@ check <- tibble(
   )
 )
 
-check
+check |>  gt()
 ```
 
 Both methods to calculate the confidence interval use the bootstrapped sample, which assumes the sample of Action films is representative of the population. Overall, the results were similar with the percentile interval (0.463, 0.679) and the standard error interval (0.460, 0.693) overlapping significantly. 
