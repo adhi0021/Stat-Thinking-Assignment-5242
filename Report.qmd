@@ -4,3 +4,24 @@ author: Group-036
 format: html
 ---
 
+
+```{r}
+#loading Libraries
+library(tidyverse)
+```
+
+
+```{r}
+movie_data_raw <- read.csv("data/movies.csv")
+```
+
+```{r}
+target_cols <- c("budget", "roi", "franchise_status")
+
+movie_data <- movie_data_raw |>
+  select(all_of(target_cols)) |> 
+  mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
+  mutate(
+    franchise_status = factor(franchise_status)
+  )
+```
