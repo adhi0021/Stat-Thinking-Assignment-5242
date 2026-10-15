@@ -3,18 +3,13 @@ title: Assignment-2
 author: Group-036
 format: html
 ---
-
-
 ```{r}
-#loading Libraries
 library(tidyverse)
+library(ggplot2)
+library(MASS)
+library(patchwork)
+data <- read.csv("data/movies.csv")
 ```
-
-
-```{r}
-movie_data_raw <- read.csv("data/movies.csv")
-```
-
 ```{r}
 target_cols <- c("budget", "roi", "franchise_status")
 
@@ -25,3 +20,135 @@ movie_data <- movie_data_raw |>
     franchise_status = factor(franchise_status)
   )
 ```
+
+
+## Question 3
+### Q3a)
+
+```{r}
+#Check distribution
+universal <- data |> 
+  filter(primary_company == "Universal Pictures" & budget > 0) |> 
+  mutate(budget = budget/1e6  )
+
+ggplot(universal, aes(x = budget,)) + 
+  geom_histogram()
+
+```
+
+The budget distribution is right skewed and only contain positive values. Can choose between exponential, Gamma, Log normal and  Weibull distribution
+
+```{r}
+#Fit plot
+budget_normal <- fitdistr(
+  universal$budget,
+  densfun = "normal"
+)
+
+
+budget_exp <- fitdistr(
+  universal$budget,
+  densfun = "exponential"
+)
+
+budget_gamma <- fitdistr(
+  universal$budget,
+  densfun = "gamma"
+)
+
+budget_weibull <- fitdistr(
+  universal$budget,
+  densfun = "weibull"
+)
+
+budget_lognormal <- fitdistr(
+  universal$budget,
+  densfun = "lognormal"
+)
+
+budget_normal
+budget_exp
+budget_gamma
+budget_weibull
+budget_lognormal
+```
+```{r}
+#qqplot
+qq_normal <- 
+  ggplot(universal, aes(sample = budget)) +
+  stat_qq(
+    distribution = qnorm,
+    dparams = as.list(budget_normal$estimate)
+  ) +
+  stat_qq_line(
+    distribution = qnorm,
+    dparams = as.list(budget_normal$estimate)
+  ) +
+  labs(title = "Normal")
+
+qq_exponential <- 
+  ggplot(universal, aes(sample = budget)) +
+  stat_qq(
+    distribution = qexp,
+    dparams = as.list(budget_exp$estimate)
+  ) +
+  stat_qq_line(
+    distribution = qexp,
+    dparams = as.list(budget_exp$estimate)
+  ) +
+  labs(title = "Exponential")
+
+qq_gamma <- 
+  ggplot(universal, aes(sample = budget)) +
+  stat_qq(
+    distribution = qgamma,
+    dparams = as.list(budget_gamma$estimate)
+  ) +
+  stat_qq_line(
+    distribution = qgamma,
+    dparams = as.list(budget_gamma$estimate)
+  ) +
+  labs(title = "Gamma")
+
+qq_weibull <- 
+  ggplot(universal, aes(sample = budget)) +
+  stat_qq(
+    distribution = qweibull,
+    dparams = as.list(budget_weibull$estimate)
+  ) +
+  stat_qq_line(
+    distribution = qweibull,
+    dparams = as.list(budget_weibull$estimate)
+  ) +
+  labs(title = "Weibull")
+
+qq_lognormal <- 
+  ggplot(universal, aes(sample = budget)) +
+  stat_qq(
+    distribution = qlnorm,
+    dparams = as.list(budget_lognormal$estimate)
+  ) +
+  stat_qq_line(
+    distribution = qlnorm,
+    dparams = as.list(budget_lognormal$estimate)
+  ) +
+  labs(title = "Log-normal")
+
+qq_normal+ qq_exponential + qq_gamma + qq_weibull + qq_lognormal
+```
+
+qq plot indicates normal and log normal worst fits as tails deviate the most from the linear line. Exponential and Gamma have the best fist as the right tail have the smallest distance and most of the points follow a linear pattern. Indicates nminimal presence of homoskedassticity
+
+```{r}
+#fit AIC
+AIC(
+  budget_normal, 
+  budget_exp, 
+  budget_gamma, 
+  budget_weibull,
+  budget_lognormal
+) |> 
+  arrange(AIC)
+```
+Gamma has lowest AIC, therefore it is the best model paird with the result of qq plot (1:00 - 2:00 15/10/26)
+>>>>>>> a1da523c0e0c307100444856d1d8b6c5340dd45b
