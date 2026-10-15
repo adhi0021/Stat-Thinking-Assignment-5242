@@ -151,4 +151,4 @@ AIC(
   arrange(AIC)
 ```
 Gamma has lowest AIC, therefore it is the best model paird with the result of qq plot (1:00 - 2:00 15/10/26)
->>>>>>> a1da523c0e0c307100444856d1d8b6c5340dd45b
+
