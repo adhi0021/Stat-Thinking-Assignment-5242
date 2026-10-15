@@ -14,9 +14,10 @@ library(gt)
 data <- read.csv("data/movies.csv")
 ```
 
+## Task 1
 ```{r}
 target_cols <- c("budget", "roi", "franchise_status")
-movie_data <- movie_data_raw |>
+task_1_data <- data |>
   select(all_of(target_cols)) |> 
   mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
   mutate(
