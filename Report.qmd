@@ -21,6 +21,7 @@ With the goal to construct a model that models an appropriate movie budget distr
 ```{r, warning = FALSE}
 #| fig-width: 5
 #| fig-height: 3
+#| fig-align: center
 #Check distribution
 universal <- data |> 
   filter(primary_company == "Universal Pictures" & budget > 0) |> 
@@ -67,6 +68,7 @@ budget_lognormal <- fitdistr(
 ```{r}
 #| fig-width: 5
 #| fig-height: 3
+#| fig-align: center
 #qqplot
 qq_normal <- 
   ggplot(universal, aes(sample = budget)) +
@@ -142,6 +144,7 @@ AIC(
   budget_weibull,
   budget_lognormal
 ) |> 
+  rownames_to_column(var = "model") |> 
   arrange(AIC) |> 
   gt()
 ```
@@ -157,17 +160,11 @@ action_roi <- data |>
   pull(roi) 
 
 #observed ROI at 25% percentile
-observed_q <- quantile(action_roi, 0.25)
-
-  tibble(
-  statistic = "Observed 25th percentile of Action film ROI",
-  value = observed_q
-) |> 
-  gt()
-
+observed_q <- quantile(action_roi, 0.25) |> 
+  round(3)
 
 ```
-
+The observed 25% percentile of Action Movie ROI was `r observed_q`
 ```{r}
 #Bootstrap Test
 set.seed(5242)
@@ -219,12 +216,13 @@ tibble(
 ```
 
 ```{r}
-#| fig-width: 7
-#| fig-height: 3
+#| fig-width: 5
+#| fig-height: 2.5
+#| fig-align: center
 
 #plot bootstrap
 q3plot1 <- ggplot(bootstrap_results, aes(x = boot_q)) +
-  geom_histogram(boundary = 0) +
+  geom_histogram(boundary = 0, binwidth = 0.025) +
   geom_vline(
     xintercept = observed_q,
     linewidth = 1,
@@ -243,7 +241,7 @@ q3plot1 <- ggplot(bootstrap_results, aes(x = boot_q)) +
   theme_minimal()
 
 q3plot2 <- ggplot(bootstrap_results, aes(x = boot_q)) +
-  geom_histogram(boundary = 0) +
+  geom_histogram(boundary = 0, binwidth = 0.025) +
   geom_vline(
     xintercept = observed_q,
     linewidth = 1,
@@ -260,7 +258,8 @@ q3plot2 <- ggplot(bootstrap_results, aes(x = boot_q)) +
     subtitle = "Dashed line shows the observed difference"
   ) +
   theme_minimal()
-q3plot1 + q3plot2
+q3plot1
+q3plot2
 
 ```
 
