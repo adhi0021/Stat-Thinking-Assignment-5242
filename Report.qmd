@@ -28,6 +28,7 @@ task_1_data <- data |>
 ## Task 2
 
 ```{r}
+#| warning: false
 task2_data <- data |>
   dplyr::select(franchise_status,budget) |>
   mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
@@ -35,9 +36,19 @@ task2_data <- data |>
     franchise_status = factor(franchise_status)
   )
 
-task2_data |>
+clean_data_t2 <- task2_data |> 
+  filter(!is.na(franchise_status), !is.na(budget))
+
+t2_sum_table <- clean_data_t2 |> group_by(franchise_status) |> 
+  summarise(
+    observations = n(),
+    median = median(budget, na.rm = TRUE),
+    sd = sd(budget, na.rm = TRUE)
+  )
+
+clean_data_t2 |>
   ggplot(aes(x = franchise_status, y = budget, fill = franchise_status))+
-  geom_boxplot(outlier.color = "red", show.legend = FALSE)+
+  geom_boxplot(outlier.color = "red", show.legend = FALSE, width = 0.4)+
   theme_minimal()+
   labs(
     title = "Budget Distribution by Franchise Status",
@@ -46,19 +57,94 @@ task2_data |>
   )
 ```
 
+So, the original have the lower median so the point estimate can be:
+
 ```{r}
-#| warning: false
-ggplot(task2_data, aes(x = franchise_status, y = budget, fill = franchise_status)) +
-  geom_violin(alpha = 0.4, color = NA) +
-  geom_boxplot(width = 0.2, outlier.color = "red", alpha = 0.8) +
+point_est_t2 <- t2_sum_table$median[t2_sum_table$franchise_status == "Franchise"] - t2_sum_table$median[t2_sum_table$franchise_status == "Original"]
+```
+
+```{r}
+
+perform_bootstrap <- function() {
+  
+  one_boot <- clean_data_t2 |> 
+    group_by(franchise_status) |> 
+    slice_sample(prop = 1, replace = TRUE)
+  
+  one_result <- one_boot |> 
+    summarise(med_budget = median(budget), .groups = "drop") |> 
+    summarise(
+      diff_median = med_budget[franchise_status == "Franchise"] - 
+                    med_budget[franchise_status == "Original"]
+    )
+  
+  return(one_result)
+}
+
+set.seed(36)
+
+bootstrap_results <- map_dfr(
+  .x = 1:5000,
+  .f = ~ perform_bootstrap()
+)
+
+ci_95 <- quantile(bootstrap_results$diff_median, probs = c(0.025, 0.975))
+ci_95
+```
+
+```{r}
+bootstrap_results |>  
+  ggplot(aes(x = diff_median)) +
+  geom_histogram() +
+  geom_vline(xintercept = point_est_t2)+
   theme_minimal() +
   labs(
-    title = "Budget Distribution: Franchise vs. Original Slates",
+    title = "Bootstrap Distribution: Difference in Median Budgets",
+    subtitle = "Franchise Median - Original Median (Red line = observed, Dashed = 95% CI)",
+    x = "Difference in Median Budget (USD)",
+    y = "Frequency"
+  )
+```
+```{r}
+# is this violin plot too much?
+task2_data |>
+  ggplot(aes(x = franchise_status, y = budget, fill = franchise_status))+
+  geom_violin(alpha = 0.4, color = NA) +
+  geom_boxplot(outlier.color = "red", show.legend = FALSE, width = 0.4)+
+  theme_minimal()+
+  labs(
+    title = "Budget Distribution by Franchise Status",
     x = "Franchise Status",
     y = "Budget (USD)"
   )
 ```
 
+Budget data are often skewed, and the median is often more meaningful than the mean when describing a budget for typical franchise and original categories. 
+Here I will be using bootstraping to find 95% interval estimate for the difference in median budget between the two groups. As bootstraping simulates repeated samples from a population like the csv provided here, it can help us to describe the uncertainity in the data.
+
+```{r}
+bootstrap_results <- tibble(
+  replicate = 1:10000
+) |>
+  mutate(
+    boot_diff = map_dbl(replicate, function(i) {
+      original_boot <- sample(
+        x = task2_data$budget[task2_data$franchise_status == "Original"],
+        size = length(task2_data$budget),
+        replace = TRUE
+      )
+
+      franchise_boot <- sample(
+        x =  task2_data$budget[task2_data$franchise_status == "Franchise"],
+        size = length(task2_data$budget),
+        replace = TRUE
+      )
+
+      median(boot_diff)
+    })
+  )
+
+```
 
 ## Task 3
 ### Part 1: Production Budget Modelling
