@@ -25,6 +25,41 @@ task_1_data <- data |>
   )
 ```
 
+## Task 2
+
+```{r}
+task2_data <- data |>
+  dplyr::select(franchise_status,budget) |>
+  mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
+  mutate(
+    franchise_status = factor(franchise_status)
+  )
+
+task2_data |>
+  ggplot(aes(x = franchise_status, y = budget, fill = franchise_status))+
+  geom_boxplot(outlier.color = "red", show.legend = FALSE)+
+  theme_minimal()+
+  labs(
+    title = "Budget Distribution by Franchise Status",
+    x = "Franchise Status",
+    y = "Budget (USD)"
+  )
+```
+
+```{r}
+#| warning: false
+ggplot(task2_data, aes(x = franchise_status, y = budget, fill = franchise_status)) +
+  geom_violin(alpha = 0.4, color = NA) +
+  geom_boxplot(width = 0.2, outlier.color = "red", alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "Budget Distribution: Franchise vs. Original Slates",
+    x = "Franchise Status",
+    y = "Budget (USD)"
+  )
+```
+
+
 ## Task 3
 ### Part 1: Production Budget Modelling
 With the goal to construct a model that models an appropriate movie budget distribution, a competitor budget analysis was conducted as a credible reference point in line with industry standards. This was performed by sampling the budgeting model from Universal Pictures Studios, which is a direct industry competitor, and fitting a realistic probability model for Meridian to follow. 
