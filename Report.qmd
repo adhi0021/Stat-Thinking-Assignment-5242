@@ -2,10 +2,10 @@
 title: Assignment-2
 author: Group-036
 format: 
-  html:
-    code-fold: true
-    lightbox: true
+  html: default
+  pdf: default
 execute:
+  echo: false
   warning: false
   message: false
 ---
@@ -16,6 +16,7 @@ library(MASS)
 library(patchwork)
 library(gt)
 library(kableExtra)
+library(scales)
 data <- read.csv("data/movies.csv")
 ```
 
@@ -32,7 +33,7 @@ This cleaning should leave us with only films where we can be reasonably certain
 ```{r}
 #| code-fold: true
 
-target_cols <- c("title", "budget", "roi", "franchise_status")
+target_cols <- c("title", "budget", "roi", "franchise_status", "primary_genre", "release_year")
 task_1_data <- data |>
   filter(
     budget >= 1000, # filtering out movies with a recorded budget below 1000 USD
@@ -50,7 +51,9 @@ task_1_data <- data |>
 @tbl-slate-overall-summary provides overall summary statistics for the budgets of films in our dataset, grouped by whether or not they were part of a franchise.
 
 
-::: {.callout-important}
+::: {#nte-franchise-coding .callout-note}
+
+## Coding for Original vs Franchise
 
 First films in a franchise are labelled as "Original" rather than as part of a franchise, and are therefore included in the data for the "Original" variable (see @tbl-slate-specifics-summary, where *Paranormal Activity* is the Original film with the best ROI, and *Paranormal Activity 2* is the Franchise film with the best ROI.)
 
@@ -68,13 +71,31 @@ As such, the below figures should be taken as indicative of overall trends only,
 task_1_data |> 
   group_by(franchise_status) |> 
   summarise(
-    `Number of movies` = as.character(n()), # using as.character allows for displaying exactly as many decimal places as we want for each value without having to fiddle with complex kable options
-    `Mean Production Budget <em>(USD millions)<em>` = as.character(round(mean(budget, na.rm = TRUE) / 1e6, 2)),
-    `Median Production Budget <em>(USD millions)<em>` = as.character(median(budget, na.rm = TRUE) / 1e6),
-    `Production Budget Standard Deviation <em>(USD millions)<em>` = as.character(round(sd(budget) / 1e6, 2)),
-    `Mean Return on Investment (ROI)` = as.character(round(mean(roi), 2)),
-    `Median ROI` = as.character(round(median(roi), 2)),
-    `ROI Standard Deviation` = as.character(round(sd(roi), 2)),
+    `Number of movies` = as.character(n()),
+    `Most Common Genre` = paste0(
+      names(which.max(table(primary_genre))),
+      " (n = ",
+      max(table(primary_genre)),
+      ")"
+    ),
+    `Mean Production Budget (USD millions)` = as.character(
+      round(mean(budget, na.rm = TRUE) / 1e6, 2)
+    ),
+    `Median Production Budget (USD millions)` = as.character(
+      round(median(budget, na.rm = TRUE) / 1e6, 2)
+    ),
+    `Production Budget Standard Deviation (USD millions)` = as.character(
+      round(sd(budget, na.rm = TRUE) / 1e6, 2)
+    ),
+    `Mean Return on Investment (ROI)` = as.character(
+      round(mean(roi, na.rm = TRUE), 2)
+    ),
+    `Median ROI` = as.character(
+      round(median(roi, na.rm = TRUE), 2)
+    ),
+    `ROI Standard Deviation` = as.character(
+      round(sd(roi, na.rm = TRUE), 2)
+    ),
     .groups = "drop"
   ) |> 
   pivot_longer(
@@ -86,11 +107,18 @@ task_1_data |>
     names_from = franchise_status,
     values_from = Value
   ) |> 
-  kable(format = "html", align = c("l", "r","r"), escape = FALSE) |> 
-  kable_styling(bootstrap_options = c("striped", "hover"))
+  gt() |> 
+  cols_align(
+    align = "left",
+    columns = Statistic
+  ) |> 
+  cols_align(
+    align = "center",
+    columns = c(Original, Franchise)
+  )
 ```
 
-@tbl-slate-specifics-summary contains more specific informatio i.e. maximum and minimum costs, best and worst ROIs, etc. Movie title is presented in italics alongside the figures.
+@tbl-slate-specifics-summary contains more specific information i.e. maximum and minimum costs, best and worst ROIs, etc. Movie title is presented in italics alongside the figures.
 
 ```{r}
 #| label: tbl-slate-specifics-summary
@@ -99,29 +127,29 @@ task_1_data |>
 task_1_data |> 
   group_by(franchise_status) |> 
   summarise(
-    `Max Production Budget <em>(USD millions)<em>` = paste0(
-      as.character(max(budget, na.rm = TRUE) / 1e6),
-      "<br><em>(",
+    `Max Production Budget (USD millions)` = paste0(
+      round(max(budget, na.rm = TRUE) / 1e6, 2),
+      "  \n*",
       title[which.max(budget)],
-      ")<em>"
+      "*"
     ),
-    `Minimum Production Budget <em>(USD)<em>` = paste0(
-      as.character(min(budget, na.rm = TRUE)),
-      "<br><em>(",
+    `Minimum Production Budget (USD)` = paste0(
+      format(min(budget, na.rm = TRUE), big.mark = ","),
+      "  \n*",
       title[which.min(budget)],
-      ")<em>"
+      "*"
     ),
     `Best ROI` = paste0(
-      round(max(roi), 2),
-      "<br><em>(",
+      round(max(roi, na.rm = TRUE), 2),
+      "  \n*",
       title[which.max(roi)],
-      ")<em>"
+      "*"
     ),
     `Worst ROI` = paste0(
-      round(min(roi), 2),
-      "<br><em>(",
+      round(min(roi, na.rm = TRUE), 2),
+      "  \n*",
       title[which.min(roi)],
-      ")<em>"
+      "*"
     ),
     .groups = "drop"
   ) |> 
@@ -134,10 +162,193 @@ task_1_data |>
     names_from = franchise_status,
     values_from = Value
   ) |> 
-  kable(format = "html", align = c("l", "r","r"), escape = FALSE) |> 
-  kable_styling(bootstrap_options = c("striped", "hover"))
+  gt() |> 
+  fmt_markdown(columns = c(Original, Franchise)) |> 
+  cols_align(
+    align = "left",
+    columns = Statistic
+  ) |> 
+  cols_align(
+    align = "center",
+    columns = c(Original, Franchise)
+  )
 ```
 
+### Budget and ROI plots
+
+```{r}
+#| label: fig-basic-boxplots
+#| fig-cap: Boxplots showing distribution of budgets and Return on Investment (Revenue divided by Budget) for Original vs Franchise films
+#| layout-ncol: 2
+#| fig-subcap: 
+#| - Budget
+#| - ROI; dashed red line is at ROI = 1 i.e. films above the line made a profit, films below lost money
+
+task_1_data |> 
+  ggplot(aes(x = franchise_status, y = budget/1e6, fill = franchise_status)) +
+  geom_boxplot(show.legend = FALSE) +
+  labs(
+    x = "Film Status",
+    y = "Film budget (USD millions)"
+  ) +
+  theme_bw()
+
+task_1_data |> 
+  ggplot(aes(x = franchise_status, y = roi, fill = franchise_status)) +
+  geom_boxplot(show.legend = FALSE) +
+  geom_hline(yintercept = 1, colour = "red", linetype = "dashed") +
+  scale_y_continuous(
+    trans = transform_pseudo_log() # using a function from the scales package to compress the y axis, as we have some extreme outliers in Original movies for ROI
+  ) +
+  labs(
+    x = "Film Status",
+    y = "Return on Investment (Revenue/Budget)"
+  ) +
+  theme_bw()
+```
+
+From the plots in @fig-basic-boxplots, and given what we know about how films are coded (@nte-franchise-coding), we can draw some conclusions from the above plots:
+
+1. Sequels are generally more expensive to make than original films
+2. Sequels are generally a safer bet than original films; they have a higher ROI on average, and are less likely to fall below an ROI of 1 (meaning they generally at least make their money back)
+3. Original films have a higher ceiling for ROI
+    - This is probably at least somewhat a function of point 1
+    - Original movies are often made for smaller amounts, and if an original movie is a surprise hit and does reasonably well at the box office on a small budget, ROI will look enormous
+
+But what about genre? Does that have an effect on movie finances?
+
+```{r}
+#| label: fig-genre-plots
+#| fig-cap: Histograms showing distribution of budget costs and ROI for Original and Franchise films, faceted by film genre
+#| layout-ncol: 2
+#| layout-nrow: 2
+#| fig-subcap: 
+#|  - "Budget: Franchise films"
+#|  - "Budget: Original films"
+#|  - "ROI: Franchise films"
+#|  - "ROI: Original films"
+
+# I should really set it up so that genres have the same colour in both plots, but it would take a lot of effort or a lot of vibe coding and then filling out an AI declaration, which amounts to the same thing
+
+task_1_data |> 
+  filter(franchise_status == "Franchise") |> 
+  ggplot(aes(x = budget/1e6, fill = primary_genre)) +
+  geom_histogram(binwidth = 25, show.legend = FALSE) +
+  # setting scale x manually allows for better comparison across plots
+  scale_x_continuous(limits = c(0, 400)) + # setting max limit to 400 as we know from earlier that one of the Pirates movies was the highest production budget at 380
+  facet_wrap(~ primary_genre) +
+  labs(
+    x = "Budget (USD millions)",
+    y = "Number of films"
+  ) +
+  theme_bw()
+
+task_1_data |> 
+  filter(
+    franchise_status == "Original",
+    primary_genre != ""
+  ) |> 
+  ggplot(aes(x = budget/1e6, fill = primary_genre)) +
+  geom_histogram(binwidth = 25, show.legend = FALSE) +
+  scale_x_continuous(limits = c(0, 400)) +
+  facet_wrap(~ primary_genre) +
+  labs(
+    x = "Budget (USD millions)",
+    y = "Number of films"
+  ) +
+  theme_bw()
+
+task_1_data |> 
+  filter(franchise_status == "Franchise") |> 
+  ggplot(aes(x = roi, fill = primary_genre)) +
+  geom_histogram(show.legend = FALSE) +
+  scale_x_continuous(
+    trans = transform_pseudo_log(),
+    breaks = c(0, 1, 100, 10000), 
+    limits = c(0,10000)
+  ) +
+  geom_vline(xintercept = 1, colour = "red", linetype = "dashed", linewidth = 0.3) +
+  facet_wrap(~ primary_genre) +
+  labs(
+    x = "ROI",
+    y = "Number of films"
+  ) +
+  theme_bw()
+
+task_1_data |> 
+  filter(
+    franchise_status == "Original",
+    primary_genre != ""
+  ) |> 
+  ggplot(aes(x = roi, fill = primary_genre)) +
+  geom_histogram(show.legend = FALSE) +
+  scale_x_continuous(
+    trans = transform_pseudo_log(),
+    breaks = c(0, 1, 100, 10000), 
+    limits = c(0,10000)
+  ) +
+  geom_vline(xintercept = 1, colour = "red", linetype = "dashed", linewidth = 0.5) +
+  facet_wrap(~ primary_genre) +
+  labs(
+    x = "ROI",
+    y = "Number of films"
+  ) +
+  theme_bw()
+```
+
+We already knew from @tbl-slate-overall-summary what genres appeared the most for Franchise and Original movies. @fig-genre-plots shows that while Drama is the most popular genre for Original films, Action isn't far behind in terms of the number of movies made. @fig-genre-plots-2 also might explain *why* Drama is such a popular genre for Original movies; there's a lot of low-budget movies Drama movies being made! The same budget pattern can be seen for Original Comedy films, although interestingly they seem to differ in terms of ROI pattern. It seems more likely that you'll make your money back on an original comedy than on an original drama. The same is not true for franchise comedies; comedy sequels seem to be the riskiest investment, with a much higher percentage of films falling below the magic ROI equals one line than for any other Franchise genre.
+
+### Slate composition over time
+
+As we saw in @fig-genre-plots, there are a lot of genres in our dataset, many of which don't have many films at all. In order to explore shifts in slate composition, we just want to look at our top genres so the plot doesn't become a tangled mess. The number of genres chosen was eyeballed from what looked relevant in the plots above (landed on 5), and those genres are:
+
+- Action
+- Adventure
+- Comedy
+- Drama
+- Horror
+
+Worth noting is that although we have some data from 2015 on, it is not complete data and is therefore not shown in @fig-genre-area-chart. It is unclear if the data we have from 2014 is fully complete, and some of the drops in numbers seen for genres like Adventure and Drama should therefore be taken with a grain of salt.
+
+```{r}
+#| label: fig-genre-area-chart
+#| fig-cap: Area chart showing trend in genre releases over time; top 5 genres by total count are highlighted
+
+NUMBER_OF_GENRES <- 5
+
+top_genres <- task_1_data |> 
+  filter(!is.na(primary_genre), primary_genre != "") |> 
+  count(primary_genre, sort = TRUE) |> 
+  slice_max(n, n = NUMBER_OF_GENRES) |> 
+  pull(primary_genre)
+
+genre_counts <- task_1_data |> 
+  filter(
+    !is.na(primary_genre),
+    primary_genre != "",
+    release_year < 2015 # we have very limited data from 2015 on, which skews the plot awkwardly and makes trends harder to see
+  ) |> 
+  mutate(year_period = (release_year %/% 5) * 5) |> 
+  count(year_period, primary_genre, name = "n")
+
+ggplot(genre_counts, aes(x = year_period, y = n, group = primary_genre)) +
+  geom_line(
+    data = filter(genre_counts, !primary_genre %in% top_genres),
+    colour = "grey",
+    alpha = 0.5
+  ) +
+  geom_line(
+    data = filter(genre_counts, primary_genre %in% top_genres),
+    aes(colour = primary_genre),
+    linewidth = 1
+  ) +
+  labs(
+    x = "Year of release",
+    y = "Number of films",
+    colour = "Primary genre"
+  ) +
+  theme_bw()
+```
 
 ## Task 2
 
