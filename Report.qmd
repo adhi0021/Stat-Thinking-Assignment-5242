@@ -356,6 +356,8 @@ Budget data are often skewed, and the median is often more meaningful than the m
 Here I will be using bootstraping to find 95% interval estimate for the difference in median budget between the two groups. As bootstraping simulates repeated samples from a population like the csv provided here, it can help us to describe the uncertainity in the data.
 
 ```{r}
+#| label: tbl-budget-status-summary
+
 clean_data_t2 <- data |>
   dplyr::select(franchise_status,budget) |>
   mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
@@ -373,25 +375,14 @@ t2_sum_table <- clean_data_t2 |>
     sd = sd(budget, na.rm = TRUE)
   )
 
-clean_data_t2 |>
-  ggplot(aes(x = franchise_status, y = budget, fill = franchise_status))+
-  geom_boxplot(outlier.color = "red", show.legend = FALSE, width = 0.4)+
-  theme_minimal()+
-  labs(
-    title = "Budget Distribution by Franchise Status",
-    x = "Franchise Status",
-    y = "Budget (USD)"
-  )
-
 ```
 
 ```{r}
 point_est_t2 <- t2_sum_table$median[t2_sum_table$franchise_status == "Franchise"] - t2_sum_table$median[t2_sum_table$franchise_status == "Original"]
 ```
 
-So, the original franchise status have the lower median. Now, the point estimate of the data is `{r} point_est_t2`.
+As interpreted from the @fig-basic-boxplots (a) and the @tbl-budget-status-summary, the 'original' franchise status have the lower median which shows that the production budgets are biased towards the 'franchise' category. To confirm this we will use bootstraping. The point estimate of the data is `{r} point_est_t2` which we will use to confirm if bootstarped estimate is similar or not. If yes, then the budget allocation is truely are leaned towards 'franchise' category.
 
-Now, bootstraping using function and loop:
 ```{r}
 
 perform_bootstrap <- function() {
@@ -439,7 +430,7 @@ bootstrap_results |>
     y = "Frequency"
   )
 ```
-This shows that the median difference is well above zero which supports the concerns of the leadership of franchise slate absorbing much larger budgets than original slate.
+This shows that the median difference is well above zero and similar to the point estimate which supports the concerns of the leadership of franchise slate absorbing much larger budgets than original slate.
 
 ### Summary
 
