@@ -1,9 +1,13 @@
 ---
 title: Assignment-2
 author: Group-036
-format: html
+format: 
+  html:
+    code-fold: true
+    lightbox: true
 execute:
-  echo: false
+  warning: false
+  message: false
 ---
 ```{r, warning = FALSE, include = FALSE}
 library(tidyverse)
@@ -11,19 +15,129 @@ library(ggplot2)
 library(MASS)
 library(patchwork)
 library(gt)
+library(kableExtra)
 data <- read.csv("data/movies.csv")
 ```
 
-## Task 1
+## Task 1 - Slate Health Check
+
+This is a high-level overview of the financial health and composition of the studios past slate. The code for preparing the data for this task can be found below. Note that we are filtering out any movie with a recorded budget less than 1000 USD from the dataset. This is because most film budgets in the dataset are recorded in actual dollars, but budgets below 1,000 appear to use inconsistent units, with some recorded in hundreds of thousands or millions of dollars. For example, *Escape from Tomorrow* has a recorded budget of 650 in the dataset. The film's actual reported budget was $650,000. Rather than attempting to source new budget data for each of the films with a reported budget less than 1000 dollars, which may be inconsistent with the data we already have, we are choosing to discard these unrealistic budgets. Note that in @tbl-slate-specifics-summary this leaves the lowest non-franchise film budget as $7,000; we can trace this back to *Primer*, a 2004 sci-fi film that really was shot on a $7,000 budget!
+
+We have the same issues with revenue for some movies; for example *Dreaming of Joseph Lees* has a reported revenue of 7 in the dataset, against a budget of 2,000,000. Most internet sources seem to suggest the actual revenue for the film was somewhere between 7,000 to 13,000 dollars. Obviously if the production budget really was in the millions of dollars, this represents a tremendous failure. 
+
+However, in terms of total financial impact to the studio, a film that costs $2,000,000 and doesn't make that back doesn't even register. The type of flops we want to make sure we have recorded are movies like *Cutthroat Island*, which had revenue of ~$10m against a budget of ~$98m. As such, we feel comfortable cutting movies with unrealistically low revenues out of the dataset as well. 
+
+This cleaning should leave us with only films where we can be reasonably certain the figures we have are accurate, or at least have the right order of magnitude.
+
 ```{r}
-target_cols <- c("budget", "roi", "franchise_status")
+#| code-fold: true
+
+target_cols <- c("title", "budget", "roi", "franchise_status")
 task_1_data <- data |>
-  select(all_of(target_cols)) |> 
+  filter(
+    budget >= 1000, # filtering out movies with a recorded budget below 1000 USD
+    revenue >= 1000
+  ) |> 
+  dplyr::select(all_of(target_cols)) |> 
   mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
   mutate(
     franchise_status = factor(franchise_status)
   )
 ```
+
+### Summary of data
+
+@tbl-slate-overall-summary provides overall summary statistics for the budgets of films in our dataset, grouped by whether or not they were part of a franchise.
+
+
+::: {.callout-important}
+
+First films in a franchise are labelled as "Original" rather than as part of a franchise, and are therefore included in the data for the "Original" variable (see @tbl-slate-specifics-summary, where *Paranormal Activity* is the Original film with the best ROI, and *Paranormal Activity 2* is the Franchise film with the best ROI.)
+
+Additionally, some films that are clearly part of a franchise are not labelled as such in the dataset; all 4 Pirates of the Caribbean movies are labelled as Original movies, for example.
+
+As such, the below figures should be taken as indicative of overall trends only, not treated as absolute truths.
+
+:::
+
+
+```{r}
+#| label: tbl-slate-overall-summary
+#| tbl-cap: Summary statistics for the studio's historical slate
+
+task_1_data |> 
+  group_by(franchise_status) |> 
+  summarise(
+    `Number of movies` = as.character(n()), # using as.character allows for displaying exactly as many decimal places as we want for each value without having to fiddle with complex kable options
+    `Mean Production Budget <em>(USD millions)<em>` = as.character(round(mean(budget, na.rm = TRUE) / 1e6, 2)),
+    `Median Production Budget <em>(USD millions)<em>` = as.character(median(budget, na.rm = TRUE) / 1e6),
+    `Production Budget Standard Deviation <em>(USD millions)<em>` = as.character(round(sd(budget) / 1e6, 2)),
+    `Mean Return on Investment (ROI)` = as.character(round(mean(roi), 2)),
+    `Median ROI` = as.character(round(median(roi), 2)),
+    `ROI Standard Deviation` = as.character(round(sd(roi), 2)),
+    .groups = "drop"
+  ) |> 
+  pivot_longer(
+    cols = -franchise_status,
+    names_to = "Statistic",
+    values_to = "Value"
+  ) |> 
+  pivot_wider(
+    names_from = franchise_status,
+    values_from = Value
+  ) |> 
+  kable(format = "html", align = c("l", "r","r"), escape = FALSE) |> 
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+@tbl-slate-specifics-summary contains more specific informatio i.e. maximum and minimum costs, best and worst ROIs, etc. Movie title is presented in italics alongside the figures.
+
+```{r}
+#| label: tbl-slate-specifics-summary
+#| tbl-cap: Movie specific statistics for the historical slate
+
+task_1_data |> 
+  group_by(franchise_status) |> 
+  summarise(
+    `Max Production Budget <em>(USD millions)<em>` = paste0(
+      as.character(max(budget, na.rm = TRUE) / 1e6),
+      "<br><em>(",
+      title[which.max(budget)],
+      ")<em>"
+    ),
+    `Minimum Production Budget <em>(USD)<em>` = paste0(
+      as.character(min(budget, na.rm = TRUE)),
+      "<br><em>(",
+      title[which.min(budget)],
+      ")<em>"
+    ),
+    `Best ROI` = paste0(
+      round(max(roi), 2),
+      "<br><em>(",
+      title[which.max(roi)],
+      ")<em>"
+    ),
+    `Worst ROI` = paste0(
+      round(min(roi), 2),
+      "<br><em>(",
+      title[which.min(roi)],
+      ")<em>"
+    ),
+    .groups = "drop"
+  ) |> 
+  pivot_longer(
+    cols = -franchise_status,
+    names_to = "Statistic",
+    values_to = "Value"
+  ) |> 
+  pivot_wider(
+    names_from = franchise_status,
+    values_from = Value
+  ) |> 
+  kable(format = "html", align = c("l", "r","r"), escape = FALSE) |> 
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
 
 ## Task 2
 
@@ -31,7 +145,6 @@ Budget data are often skewed, and the median is often more meaningful than the m
 Here I will be using bootstraping to find 95% interval estimate for the difference in median budget between the two groups. As bootstraping simulates repeated samples from a population like the csv provided here, it can help us to describe the uncertainity in the data.
 
 ```{r}
-#| warning: false
 clean_data_t2 <- data |>
   dplyr::select(franchise_status,budget) |>
   mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
