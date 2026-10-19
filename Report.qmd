@@ -98,6 +98,8 @@ task_1_data |>
     ),
     .groups = "drop"
   ) |> 
+
+  # pivoting long and then wide to get Franchise and Original to be our variable names
   pivot_longer(
     cols = -franchise_status,
     names_to = "Statistic",
@@ -124,33 +126,25 @@ task_1_data |>
 #| label: tbl-slate-specifics-summary
 #| tbl-cap: Movie specific statistics for the historical slate
 
+# this entire table was the bane of my existence
+# i hate rendering tables to PDF
+# Did you know that if you try to use a linebreak like \n in gt or \\\\ in kable, rendering to PDF will cause that new line to appear in a new cell in column 1?
+# instead of being sensible and remaining in the same cell?
+# I'm sure this could be fixed by fiddling with the PDF render options but like
+# why is that the default behaviour
+# insane 
+
 task_1_data |> 
   group_by(franchise_status) |> 
   summarise(
-    `Max Production Budget (USD millions)` = paste0(
-      round(max(budget, na.rm = TRUE) / 1e6, 2),
-      "  \n*",
-      title[which.max(budget)],
-      "*"
-    ),
-    `Minimum Production Budget (USD)` = paste0(
-      format(min(budget, na.rm = TRUE), big.mark = ","),
-      "  \n*",
-      title[which.min(budget)],
-      "*"
-    ),
-    `Best ROI` = paste0(
-      round(max(roi, na.rm = TRUE), 2),
-      "  \n*",
-      title[which.max(roi)],
-      "*"
-    ),
-    `Worst ROI` = paste0(
-      round(min(roi, na.rm = TRUE), 2),
-      "  \n*",
-      title[which.min(roi)],
-      "*"
-    ),
+    `Max Production Budget (USD millions)` = as.character(round(max(budget, na.rm = TRUE) / 1e6, 2)),
+    `*Max Production Budget - Film Title*` = paste0("*", title[which.max(budget)], "*"), # tried replacing title row names w/ whitespace, somehow made the table look even worse
+    `Minimum Production Budget (USD)` = format(min(budget, na.rm = TRUE), big.mark = ","),
+    `*Minimum Production Budget - Film Title*` = paste0("*", title[which.min(budget)], "*"),
+    `Best ROI` = as.character(round(max(roi, na.rm = TRUE), 2)),
+    `*Best ROI - Film Title*` = paste0("*", title[which.max(roi)], "*"),
+    `Worst ROI` = as.character(round(min(roi, na.rm = TRUE), 2)),
+    `*Worst ROI - Film Title*` = paste0("*", title[which.min(roi)], "*"),
     .groups = "drop"
   ) |> 
   pivot_longer(
@@ -163,7 +157,7 @@ task_1_data |>
     values_from = Value
   ) |> 
   gt() |> 
-  fmt_markdown(columns = c(Original, Franchise)) |> 
+  fmt_markdown(columns = c(Statistic, Original, Franchise)) |> 
   cols_align(
     align = "left",
     columns = Statistic
@@ -171,7 +165,15 @@ task_1_data |>
   cols_align(
     align = "center",
     columns = c(Original, Franchise)
+  ) |> 
+
+  # manually setting column widths because on top of everything else, LuaLaTeX has failed me here as well
+  cols_width( 
+    Statistic ~ "2in",
+    Franchise ~ "2.4in",
+    Original ~ "2.4in" # google says these values should add up to 6.8in
   )
+
 ```
 
 ### Budget and ROI plots
@@ -308,11 +310,11 @@ As we saw in @fig-genre-plots, there are a lot of genres in our dataset, many of
 - Drama
 - Horror
 
-Worth noting is that although we have some data from 2015 on, it is not complete data and is therefore not shown in @fig-genre-area-chart. It is unclear if the data we have from 2014 is fully complete, and some of the drops in numbers seen for genres like Adventure and Drama should therefore be taken with a grain of salt.
+Worth noting is that although we have some data from 2015 on, it is not complete data and is therefore not included in @fig-genre-line-chart. It is unclear if the data we have from 2014 is fully complete, and some of the drops in numbers seen for genres like Adventure and Drama should therefore be taken with a grain of salt.
 
 ```{r}
-#| label: fig-genre-area-chart
-#| fig-cap: Area chart showing trend in genre releases over time; top 5 genres by total count are highlighted
+#| label: fig-genre-line-chart
+#| fig-cap: Line chart showing trend in genre releases over time; top 5 genres by total count are highlighted; film releases have been aggregated into 5 year blocks to make trends more visible
 
 NUMBER_OF_GENRES <- 5
 
@@ -324,7 +326,6 @@ top_genres <- task_1_data |>
 
 genre_counts <- task_1_data |> 
   filter(
-    !is.na(primary_genre),
     primary_genre != "",
     release_year < 2015 # we have very limited data from 2015 on, which skews the plot awkwardly and makes trends harder to see
   ) |> 
@@ -349,6 +350,37 @@ ggplot(genre_counts, aes(x = year_period, y = n, group = primary_genre)) +
   ) +
   theme_bw()
 ```
+
+```{r}
+#| label: fig-status-area-chart
+#| fig-cap: Area charts showing the split between original and franchise films by year
+#| layout-ncol: 2
+#| fig-subcap: 
+#|  - Stacked area chart displaying actual numbers of films for each year
+#|  - Filled area chart showing franchise status as a percentage of all films released in a given year
+
+status_counts <- task_1_data |> 
+  count(release_year, franchise_status, name = "n")
+
+ggplot(status_counts, aes(x = release_year, y = n, fill = franchise_status)) +
+  geom_area(position = "stack") +
+  labs(
+    x = "Year of release",
+    y = "Number of films"
+  ) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+ggplot(status_counts, aes(x = release_year, y = n, fill = franchise_status)) +
+  geom_area(position = "fill") +
+  labs(
+    x = "Year of release",
+    y = "Percentage of all releases in a year",
+    fill = "Franchise Status"
+  ) +
+  theme_bw()
+```
+
 
 ## Task 2
 
@@ -430,6 +462,7 @@ bootstrap_results |>
     y = "Frequency"
   )
 ```
+
 This shows that the median difference is well above zero and similar to the point estimate which supports the concerns of the leadership of franchise slate absorbing much larger budgets than original slate.
 
 ### Summary
@@ -573,6 +606,7 @@ AIC(
   arrange(AIC) |> 
   gt()
 ```
+
 The Gamma model has lowest AIC, which paired with the fitting of the qqplot, which suggests that it is the best at fitting budget data. 
 
 ###  Part 2: Downside Risk Analysis for Action Movie ROI
