@@ -56,7 +56,7 @@ This cleaning should leave us with only films where we can be reasonably certain
 ```{r}
 #| code-fold: true
 
-target_cols <- c("title", "budget", "roi", "franchise_status", "primary_genre", "release_year")
+target_cols <- c("title", "budget", "roi", "franchise_status", "primary_genre", "release_year", "cast_size")
 task_1_data <- data |>
   filter(
     budget >= 1000, # filtering out movies with a recorded budget below 1000 USD
@@ -781,4 +781,67 @@ Based on the analysis, it is recommended to select the Gamma distribution for th
 
 In this sample, 25% of action films had an ROI of 0.576 or lower. We are 95% confident the true 25th percentile of the ROI for all action films across all studios lies between 0.463 and 0.679. For a conservative risk figure to plan around, Finance should consider 0.463 (46.3% return) for an underperforming Action film. 
 
+## Task 4
+
+```{r}
+
+task4_data <- task_1_data |> 
+mutate(
+    flop = case_when(roi < 1 ~ "Flop",
+                    TRUE ~ "Not flop"),
+    flop = factor(flop, levels = c("Not flop", "Flop"))
+  )
+glimpse(task4_data)
+```
+
+The new flop variable only has two possible outcomes, which means it can be modeled by a Bernoulli distribution, where the parameter p measures the probability that a move is a flop. Hence, logistic regression is the appropriate choice as the log function $\log\left(\frac{p_i}{1 - p_i}\right)$ ensures the predicted probabilities remain between 0 and 1. The linear regression is not suitable as it assumes outcomes are continuous and normally distributed, while the flop variable only takes 0 and 1. Poisson regression is also not suitable as it is used when the outcome is a count with no upper limit. 
+
+```{r, warning = FALSE}
+library(brms)
+library(bayesplot)
+library(posterior)
+library(yardstick)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(performance)
+library(see)
+library(patchwork)
+
+```
+
+```{r}
+task4_data <- task4_data |> 
+  filter(!is.na(cast_size), !is.na(primary_genre) ) |> 
+  mutate(log_budget = log(budget)) |>
+  mutate(across(c(log_budget, cast_size),
+                ~ (.x - mean(.x)) / sd(.x),
+                .names = "{.col}.z"))
+
+freq_logistic_model <- glm(
+  formula = flop ~ primary_genre + franchise_status + log_budget.z + cast_size.z,
+  family = binomial,
+  data = task4_data
+)
+summary(freq_logistic_model)
+```
+```{r, warning = FALSE}
+confint(freq_logistic_model)
+
+exp(coef(freq_logistic_model))
+exp(confint(freq_logistic_model))
+
+```
+```{r}
+#| fig.width: 12
+#| fig.height: 12
+check_model(freq_logistic_model)
+```
+Franchise orginal and cast size had little statistical st
+
+The frequentist model reproduces the observed numbers of flops and non-flops. All VIFs are close to 1, which rules out colinearity. No individual film is overly influential. Most binned residuals fall within the error bounds, although some residuals around predicted probabilities of 20–30% fall were below the error interval. The homogeneity of variance and normality plots are not relevant for a binary outcome. We also assume the films are independent and that each numeric predictor has a linear relationship with the log-odds of a flop.
+
+```{r}
+table(task4_data$primary_genre)
+```
 
