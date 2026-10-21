@@ -415,6 +415,7 @@ task_1_data |>
   )
 ```
 
+The @fig-basic-boxplots-1 shows differnce in median of sequals and originals using a boxplot. The median budget of franchise is higher than the original (The data analysed here is from 1974 and later as discussed in @sec-task-1) which raises the concern of the leadership about the budget. However in @fig-basic-boxplots-2, the difference between ROI's of both the categories shows a much needed aspect to increase the overall profits of the production house.  
 
 ```{r}
 clean_data_t2 <- data |>
@@ -439,7 +440,7 @@ t2_sum_table <- clean_data_t2 |>
 point_est_t2 <- t2_sum_table$median[t2_sum_table$franchise_status == "Franchise"] - t2_sum_table$median[t2_sum_table$franchise_status == "Original"]
 ```
 
-As interpreted from the @fig-basic-boxplots and the @tbl-slate-overall-summary, the 'original' franchise status have the lower median which shows that the production budgets are biased towards the 'franchise' category. To confirm this we will use bootstraping. The point estimate of the data is `{r} point_est_t2` which we will use to confirm if bootstarped estimate is similar or not. If yes, then the budget allocation is truely are leaned towards 'franchise' category.
+As interpreted from the @fig-basic-boxplots and the @tbl-slate-overall-summary, the 'original' franchise status have the lower median which shows that the production budgets are biased towards the 'franchise' category as the median ROI in not much in case of originals. To confirm this we will use bootstraping method that takes n number of samples, here 5000 from the dataset with repeated values as TRUE so that it can include random observations multiple times. The reason of this bootstrapping is to confirm the baised selection of budget allocation by the leadership. The point estimate of the data is `r point_est_t2` which we will use to confirm if bootstarped estimate is similar or not. If yes, then the budget allocation is truely are leaned towards 'franchise' category. 
 
 ```{r}
 
@@ -469,39 +470,42 @@ bootstrap_results <- map_dfr(
 ci_95 <- quantile(bootstrap_results$diff_median, probs = c(0.025, 0.975))
 ```
 
-The percentile bootstrap confidence interval of the data is `{r} ci_95[1]` and `{r} ci_95[2]`. The interval suggests that the population median difference is plausible between these values based on the data and bootstrap method.
+The percentile bootstrap confidence interval of the data is `r ci_95[1]` and `r ci_95[2]`. The interval suggests that the population median difference is plausible between these values based on the data and bootstrap method.
 
 ### Does it verify leadership concern?
 
 ```{r}
 bootstrap_results |>  
+  mutate(diff_median = diff_median/1e6) |> 
   ggplot(aes(x = diff_median)) +
-  geom_histogram() +
-  geom_vline(xintercept = point_est_t2)+
-  geom_vline(xintercept = ci_95[1], linetype = "dashed")+
-  geom_vline(xintercept = ci_95[2], linetype = "dashed")+
+  geom_histogram(color = "white", bins = 30) +
+  geom_vline(xintercept = point_est_t2/1e6, color = "red", linewidth = 0.7)+
+  geom_vline(xintercept = ci_95[1]/1e6, linetype = "dashed")+
+  geom_vline(xintercept = ci_95[2]/1e6, linetype = "dashed")+
   labs(
     title = "Bootstrap Distribution: Difference in Median Budgets",
     subtitle = "Franchise Median - Original Median (Simple line = observed, Dashed = 95% CI)",
-    x = "Difference in Median Budget (USD)",
+    x = "Difference in Median Budget (Millions USD)",
     y = "Frequency"
   )
 ```
 
 This shows that the median difference is well above zero and similar to the point estimate which supports the concerns of the leadership of franchise slate absorbing much larger budgets than original slate.
    
-Additionally from @sec-task-1 @fig-basic-boxplots, we can interpret that the originals have higher number of outliers that drastically increases the profits of the production houses. However, the overall ROI in origianls is low.
+Additionally from @sec-task-2 @fig-basic-boxplots-2, we can interpret that the originals have higher number of outliers that drastically increases the profits of the production houses but overall originals have a lower median ROI. 
 
 ### Summary
 
-The median is the best way to summarise the budget data as they are always right skewed and using mean won't provide any acceptable information. We needed to know about the difference in median of the two facets of franchise status to confirm the concern of the leadership about the baised budget allocation towards franchises. By boostraping the median difference of the `franchise_status` categories and creating a histogram of it showed that the median difference is well above zero (near 18 Million) which confirms the concern about budget allocations. 
+The median is the best way to summarise the budget data as they are always right skewed and using mean won't provide any acceptable information. We needed to know about the difference in median of the two facets of franchise status to confirm the concern of the leadership about the baised budget allocation towards franchises. By boostraping the median difference of the `franchise_status` categories and creating a histogram of it showed that the median difference is well above zero (near 18 Million) which confirms the concern about budget allocations prioritisation. 
 
-However, ss stated in @sec-task-1, the sequels are much expensive to make than the originals and they have higher ROI than the originals, due to this reason the production houses are more inclined towards producing sequals as they have much better chance of creating profits than the originals. But from @sec-task-1 @fig-basic-boxplots, we can interpret that the originals have higher number of outliers that drastically increases the profits of the production houses. However, the overall ROI in origianls is low.
+However, as stated in @sec-task-1, the sequels are much expensive to make than the originals and they have higher ROI than the originals, due to this reason the production houses are more inclined towards producing sequals as they have much better chance of creating profits than the originals. But from @sec-task-2 @fig-basic-boxplots-2, we can interpret that the originals have higher number of outliers that drastically increases the profits of the production houses. However, the median ROI in origianls is low hence producing originals seems risky.
 
 ### Advice
-The advice to the leadership is to focus on original movies that have high potential such as the genre that have the most profitable originals and gradually increase the budget allocation for them and compare the profits generated by both categories simultaniously and changing or refining the new original story selection strategy, find a optimised allocation stratergy that maximises the profits for the company. 
+The advice to the leadership is to focus on original movies that have high potential such as the genre that have the most profitable originals with lower risk such as horror for 2017 and gradually increase the budget allocation for them while comparing the profits generated by both categories simultaniously and changing or refining the new original story selection strategy and finding a optimised allocation stratergy that maximises the profits for the company. 
 
-Choosing more originals carefully and strategically, provides more room for higher profits and gradually trying and testing original category in different genre and creating an optimal budget allocation for movies can increase the profits with a high margin. 
+According to @sec-task-1, @fig-genre-plots-4 shows the ROI of originals in Meridian's focus genre where less than 1 shows the movie was a flop or a disaster. The genre horror comes up at the top with second lowest flop rate and really high potential for a big profit.
+
+Choosing more originals from horror genre in the slots for 2017 releases carefully and strategically, provides more room for higher profits and gradually trying and testing with different genre, creating an optimal budget allocation for movies can increase the profits with a high margin. 
 
 ## Task 3 {#sec-task-3}
 ### Part 1: Production Budget Modelling
