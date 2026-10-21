@@ -475,6 +475,8 @@ The percentile bootstrap confidence interval of the data is `r ci_95[1]` and `r 
 ### Does it verify leadership concern?
 
 ```{r}
+#| label: fig-bootstrap-hist
+#| fig-cap: Bootstrap Distribution: Difference in Median Budgets, Franchise Median - Original Median (Simple line = observed, Dashed = 95% CI)
 bootstrap_results |>  
   mutate(diff_median = diff_median/1e6) |> 
   ggplot(aes(x = diff_median)) +
@@ -483,20 +485,18 @@ bootstrap_results |>
   geom_vline(xintercept = ci_95[1]/1e6, linetype = "dashed")+
   geom_vline(xintercept = ci_95[2]/1e6, linetype = "dashed")+
   labs(
-    title = "Bootstrap Distribution: Difference in Median Budgets",
-    subtitle = "Franchise Median - Original Median (Simple line = observed, Dashed = 95% CI)",
     x = "Difference in Median Budget (Millions USD)",
     y = "Frequency"
   )
 ```
 
-This shows that the median difference is well above zero and similar to the point estimate which supports the concerns of the leadership of franchise slate absorbing much larger budgets than original slate.
+@fig-bootstrap-hist shows that the median difference is well above zero and similar to the point estimate which supports the concerns of the leadership of franchise slate absorbing much larger budgets than original slate.
    
 Additionally from @sec-task-2 @fig-basic-boxplots-2, we can interpret that the originals have higher number of outliers that drastically increases the profits of the production houses but overall originals have a lower median ROI. 
 
 ### Summary
 
-The median is the best way to summarise the budget data as they are always right skewed and using mean won't provide any acceptable information. We needed to know about the difference in median of the two facets of franchise status to confirm the concern of the leadership about the baised budget allocation towards franchises. By boostraping the median difference of the `franchise_status` categories and creating a histogram of it showed that the median difference is well above zero (near 18 Million) which confirms the concern about budget allocations prioritisation. 
+The median is the best way to summarise the budget data as they are always right skewed and using mean won't provide any acceptable information. We needed to know about the difference in median of the two facets of franchise status to confirm the concern of the leadership about the baised budget allocation towards franchises. By boostraping the median difference of the `franchise_status` categories and creating a histogram of it (@fig-bootstrap-hist) showed that the median difference is well above zero (near 18 Million) which confirms the concern about budget allocations prioritisation. 
 
 However, as stated in @sec-task-1, the sequels are much expensive to make than the originals and they have higher ROI than the originals, due to this reason the production houses are more inclined towards producing sequals as they have much better chance of creating profits than the originals. But from @sec-task-2 @fig-basic-boxplots-2, we can interpret that the originals have higher number of outliers that drastically increases the profits of the production houses. However, the median ROI in origianls is low hence producing originals seems risky.
 
