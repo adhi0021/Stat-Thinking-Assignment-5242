@@ -833,9 +833,7 @@ The frequentist model reproduces the observed numbers of flops and non-flops. Al
 ### Bayesian REgression Model
 
 ```{r}
-file.exists("C:/rtools45/usr/bin/make.exe")
-Sys.which("make")
-
+library(brms)
 bayes_logistic <- brm(
   flop ~ primary_genre + franchise_status + log_budget.z + cast_size.z,
   data = task4_data,
@@ -845,5 +843,13 @@ bayes_logistic <- brm(
     prior(normal(0, 1), class = b)
   )
 )
+
+```
+```{r}
+summary(bayes_logistic)
+plot(bayes_logistic)
+```
+```{r}
+pp_check(bayes_logistic)
 ```
 
