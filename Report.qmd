@@ -54,7 +54,7 @@ theme_set(theme_bw(base_size = 14) +
 ```{r}
 #| code-fold: true
 
-target_cols <- c("title", "budget", "roi", "franchise_status", "primary_genre", "release_year", "cast_size")
+target_cols <- c("title", "budget", "roi", "franchise_status", "primary_genre", "release_year", "cast_size", "primary_company")
 task_1_data <- data |>
   filter(
     budget >= 1000, # filtering out movies with a recorded budget below 1000 USD
@@ -505,15 +505,15 @@ Choosing more originals carefully and strategically, provides more room for high
 
 ## Task 3 {#sec-task-3}
 ### Part 1: Production Budget Modelling
-With the goal to construct a model that models an appropriate movie budget distribution, a competitor budget analysis was conducted as a credible reference point in line with industry standards. This was performed by sampling the budgeting model from Universal Pictures Studios, which is a direct industry competitor, and fitting a realistic probability model for Meridian to follow. 
+With the goal to construct a model that models an appropriate movie budget distribution, a competitor budget analysis was conducted as a credible reference point in line with industry standards. This was performed by sampling the budgeting model from Universal Pictures Studios, which is a direct industry competitor, and fitting a realistic probability model for Meridian to follow after similar data processing from previous analysis. 
 
 ```{r, warning = FALSE}
 #| fig-width: 5
 #| fig-height: 3
 #| fig-align: center
 #Check distribution
-universal <- data |> 
-  filter(primary_company == "Universal Pictures" & budget > 0) |> 
+universal <- task_1_data |> 
+  filter(primary_company == "Universal Pictures") |> 
   mutate(budget = budget/1e6  )
 
 ggplot(universal, aes(x = budget,)) + 
@@ -638,14 +638,14 @@ AIC(
   gt()
 ```
 
-The Gamma model has lowest AIC, which paired with the fitting of the qqplot, which suggests that it is the best at fitting budget data. 
+The Gamma model has lowest AIC, which paired with the fitting of the qqplot, which suggests that it is the best at fitting budget data. However, the Weibull model would also be sufficient as the AIC is slighly larger than the gamma distribution by 1. 
 
 ###  Part 2: Downside Risk Analysis for Action Movie ROI
 
 Action movies have been established as capital-intensive to produce, which can be proved as risky for budget investment in order to yield significant revenue. As a result, risk analysis into the bottom performing 25% movie ROI was performed across the entire film industry to model conservative target ROI to aim for, 
 
 ```{r}
-action_roi <- data |> 
+action_roi <- task_1_data |> 
   filter(primary_genre == "Action", !is.na(roi)) |> 
   pull(roi) 
 
@@ -773,9 +773,9 @@ check <- tibble(
 check |>  gt()
 ```
 
-Both methods to calculate the confidence interval use the bootstrapped sample, which assumes the sample of Action films is representative of the population. Overall, the results were similar with the percentile interval (0.463, 0.679) and the standard error interval (0.460, 0.693) overlapping significantly. 
+Both methods to calculate the confidence interval use the bootstrapped sample, which assumes the sample of Action films is representative of the population. Overall, both the percentile interval and the standard error interval equal to (0.76, 1.00). 
 
-The percentile method does not consider symmetry as it takes the 2.5th and 97.5th percentiles directly from the bootstrapped distribution, while the bootstrapped standard error method assumes the distribution is symmetric and approximately bell-shaped which places the lower and upper bounds equidistant from the observed 25th percentile (0.576). The Standard Error method slightly overstated the upper bound in comparison to the percentile bootstrap estimate while maintaining similar estimates for the lower bound. This may have been because the bootstrapped distribution is slightly left skewed where the percentile bootstrap method displays a larger gap between the observed estimate and the lower bound than the upper bound. The Standard error method also had a larger width in the confidence interval likely due to the larger tails, which increase the estimated Standard Error as a result. Since the percentile method does not rely on the symmetry assumption being accurate, it is best to use this method although both methods yielded similar results.
+The percentile method does not consider symmetry as it takes the 2.5th and 97.5th percentiles directly from the bootstrapped distribution, while the bootstrapped standard error method assumes the distribution is symmetric and approximately bell-shaped which places the lower and upper bounds equidistant from the observed 25th percentile (0.89). Both methods yielded identical intervals due to the bootstrapped distribution appearing to be approximately symmetric around the observed estimate with little skewness. This indicates the symmetry assumption is upheld where the standard error interval relies on this assumption holding as true. Although either method is suitable here, the percentile method is generally preferred because it does not depend on the symmetry assumption.
 
 ### Summary
 
@@ -800,7 +800,7 @@ The new flop variable only has two possible outcomes, which means it can be mode
 
 ```{r}
 task4_data <- task4_data |> 
-  filter(!is.na(cast_size), !is.na(primary_genre) ) |> 
+  filter(!is.na(cast_size), primary_genre %in% meridian_genres ) |> 
   mutate(log_budget = log(budget)) |>
   mutate(across(c(log_budget, cast_size),
                 ~ (.x - mean(.x)) / sd(.x),
@@ -813,6 +813,8 @@ freq_logistic_model <- glm(
 )
 summary(freq_logistic_model)
 ```
+Using the 5% significant level, franchise status, cast size, and the Animation, Comedy and Horror genres are significantly associated with the probability of a film flopping. The Drama genre and Log budget are not significantly associate with the odds of a movie flopping due to the p values being greater after adjusting for other predictors. 
+
 ```{r, warning = FALSE}
 confint(freq_logistic_model)
 
@@ -825,11 +827,23 @@ exp(confint(freq_logistic_model))
 #| fig.height: 12
 check_model(freq_logistic_model)
 ```
-Franchise orginal and cast size had little statistical st
 
-The frequentist model reproduces the observed numbers of flops and non-flops. All VIFs are close to 1, which rules out colinearity. No individual film is overly influential. Most binned residuals fall within the error bounds, although some residuals around predicted probabilities of 20–30% fall were below the error interval. The homogeneity of variance and normality plots are not relevant for a binary outcome. We also assume the films are independent and that each numeric predictor has a linear relationship with the log-odds of a flop.
+
+The frequentist model reproduces the observed numbers of flops and non-flops. All VIFs are close to 1, which suggests no evidence of collinearity. Most binned residuals fall within the error bounds with a few bins around 20–30% fall below the lower bound of predicted probabilities, suggesting the model slightly overestimates the probability of a flop in this range. The homogeneity of variance and normality plots are not relevant for a binary outcome. We also assume the films are independent and that each numeric predictor has a linear relationship with the log-odds of a flop.
+### Bayesian REgression Model
 
 ```{r}
-table(task4_data$primary_genre)
+file.exists("C:/rtools45/usr/bin/make.exe")
+Sys.which("make")
+
+bayes_logistic <- brm(
+  flop ~ primary_genre + franchise_status + log_budget.z + cast_size.z,
+  data = task4_data,
+  family = bernoulli(),
+  prior = c(
+    prior(normal(0, 2), class = Intercept),
+    prior(normal(0, 1), class = b)
+  )
+)
 ```
 
