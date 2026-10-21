@@ -1,6 +1,13 @@
 ---
-title: Assignment-2
+title: Assignment-2-Appendix
 author: Group-036
 format: html
 ---
 
+## Group number - 036
+## Members: 
+1. Aryaman Dhindsa
+2. Alex 
+3. Phi 
+
+(Sorry guys i do not remember your whole name ;-)
