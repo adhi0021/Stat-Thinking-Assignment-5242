@@ -12,12 +12,19 @@ self-contained: true
 ---
 ```{r, warning = FALSE, include = FALSE}
 library(tidyverse)
-library(ggplot2)
 library(MASS)
 library(patchwork)
 library(gt)
 library(kableExtra)
 library(scales)
+library(brms)
+library(bayesplot)
+library(posterior)
+library(yardstick)
+library(performance)
+library(see)
+library(patchwork)
+
 data <- read.csv("data/movies.csv")
 
 # Plot options and themes
@@ -32,7 +39,6 @@ options(
 
 theme_set(theme_bw(base_size = 14) +
    theme(
-     aspect.ratio = 1,
      plot.background = element_rect(fill = 'transparent', colour = NA),
      plot.title.position = "plot",
      plot.title = element_text(size = 24),
@@ -45,14 +51,6 @@ theme_set(theme_bw(base_size = 14) +
 
 ## Task 1 - Slate Health Check {#sec-task-1}
 
-This is a high-level overview of the financial health and composition of the studios past slate. The code for preparing the data for this task can be found below. Note that we are filtering out any movie with a recorded budget less than 1000 USD from the dataset. This is because most film budgets in the dataset are recorded in actual dollars, but budgets below 1,000 appear to use inconsistent units, with some recorded in hundreds of thousands or millions of dollars. For example, *Escape from Tomorrow* has a recorded budget of 650 in the dataset. The film's actual reported budget was $650,000. Rather than attempting to source new budget data for each of the films with a reported budget less than 1000 dollars, which may be inconsistent with the data we already have, we are choosing to discard these unrealistic budgets. Note that in @tbl-slate-specifics-summary this leaves the lowest non-franchise film budget as $7,000; we can trace this back to *Primer*, a 2004 sci-fi film that really was shot on a $7,000 budget!
-
-We have the same issues with revenue for some movies; for example *Dreaming of Joseph Lees* has a reported revenue of 7 in the dataset, against a budget of 2,000,000. Most internet sources seem to suggest the actual revenue for the film was somewhere between 7,000 to 13,000 dollars. Obviously if the production budget really was in the millions of dollars, this represents a tremendous failure. 
-
-However, in terms of total financial impact to the studio, a film that costs $2,000,000 and doesn't make that back doesn't even register. The type of flops we want to make sure we have recorded are movies like *Cutthroat Island*, which had revenue of ~$10m against a budget of ~$98m. As such, we feel comfortable cutting movies with unrealistically low revenues out of the dataset as well. 
-
-This cleaning should leave us with only films where we can be reasonably certain the figures we have are accurate, or at least have the right order of magnitude.
-
 ```{r}
 #| code-fold: true
 
@@ -60,7 +58,9 @@ target_cols <- c("title", "budget", "roi", "franchise_status", "primary_genre", 
 task_1_data <- data |>
   filter(
     budget >= 1000, # filtering out movies with a recorded budget below 1000 USD
-    revenue >= 1000
+    budget < 550000000, # most expensive movie ever was Jurassic World Dominion with a budget of 549 million so let's cut anything higher for being fake
+    revenue >= 1000,
+    release_year >= 1974 # the franchise tag is not used until 1974, despite franchise films such as James Bond existing before then
   ) |> 
   dplyr::select(all_of(target_cols)) |> 
   mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
@@ -69,27 +69,37 @@ task_1_data <- data |>
   )
 ```
 
+This is a high-level overview of the financial health and composition of the studios historical slate.
+
+Some cleaning has been done to prepare the data for this report. Some films in the dataset had missing or unrealistically low values for budget or revenue. Most dollar amounts in the dataset have been entered as the whole figure, but in some cases it appears they have been recorded as hundreds of thousands or millions of dollars. For example, *Escape from Tomorrow* has a recorded budget of 650 in the dataset. The film's actual reported budget was $650,000.
+
+Given the large initial size of the dataset (no. of films = `r nrow(data)`) we decided to filter out any films with budget or revenue amounts less than 1000 to cut films with missing or implausible values. We also removed any films with a reported budget higher than 550 million USD (the largest budget ever reported for a film). The franchise tag is not used for any film pre-1974 even when films *were* part of a franchise (like James Bond); given the importance of comparison between Original and Franchise films to this report we have also filtered for only films released in 1974 or later.
+
+This left us with `r (nrow(task_1_data))` films to analyse, of which franchise films made up `r 100*(task_1_data |> filter(franchise_status == "Franchise") |> nrow())/nrow(task_1_data)`% of the films in our cleaned dataset, vs the `r 100*(data |> filter(franchise_status == "Franchise") |> nrow())/nrow(data)`% they made up in the original dataset. We are happy that this does not represent a large enough change in the composition of our data to skew our analysis. 
+
 ### Summary of data
 
-@tbl-slate-overall-summary provides overall summary statistics for the budgets of films in our dataset, grouped by whether or not they were part of a franchise.
+::: {#nte-franchise-coding .callout-note title = "Coding for Original vs Franchise"}
+\fontsize{6}{8}\selectfont
 
+First films in a franchise are labelled as "Original" rather than as part of a franchise, and are therefore included in the data for the "Original" variable (see @tbl-slate-overall-summary, where *Paranormal Activity* is an Original film, and *Paranormal Activity 2* is a Franchise film.)
 
-::: {#nte-franchise-coding .callout-note}
+Additionally, some films that are clearly part of a franchise are not labelled as such; i.e. all 4 Pirates of the Caribbean movies are labelled as Original movies.
 
-## Coding for Original vs Franchise
-
-First films in a franchise are labelled as "Original" rather than as part of a franchise, and are therefore included in the data for the "Original" variable (see @tbl-slate-specifics-summary, where *Paranormal Activity* is the Original film with the best ROI, and *Paranormal Activity 2* is the Franchise film with the best ROI.)
-
-Additionally, some films that are clearly part of a franchise are not labelled as such in the dataset; all 4 Pirates of the Caribbean movies are labelled as Original movies, for example.
-
-As such, the below figures should be taken as indicative of overall trends only, not treated as absolute truths.
+As such, the figures in @tbl-slate-overall-summary should be taken as *indicative* of overall trends only, not treated as absolute truths.
 
 :::
 
 
 ```{r}
 #| label: tbl-slate-overall-summary
-#| tbl-cap: Summary statistics for the studio's historical slate
+#| tbl-cap: Summary statistics for the historical slate
+
+# this entire table was the bane of my existence
+# i hate rendering tables to PDF
+# Did you know that if you try to use a linebreak like \n in gt or \\\\ in kable, rendering to PDF will cause that new line to appear in a new cell in column 1?
+# instead of being sensible and remaining in the same cell?
+# so here's a nasty workaround creating variable names that are all unique permutations of whitespace to create the rows I want
 
 task_1_data |> 
   group_by(franchise_status) |> 
@@ -119,6 +129,14 @@ task_1_data |>
     `ROI Standard Deviation` = as.character(
       round(sd(roi, na.rm = TRUE), 2)
     ),
+    `Max Production Budget (USD millions)` = as.character(round(max(budget, na.rm = TRUE) / 1e6, 2)),
+    ` ` = paste0("*(", title[which.max(budget)], ")*"), 
+    `Minimum Production Budget (USD)` = format(min(budget, na.rm = TRUE), big.mark = ","),
+    `  ` = paste0("*(", title[which.min(budget)], ")*"), # unique amounts of whitespace so that each of these variables have "different" names and the table prints correctly
+    `Best ROI` = as.character(round(max(roi, na.rm = TRUE), 2)),
+    `   ` = paste0("*(", title[which.max(roi)], ")*"),
+    `Worst ROI` = as.character(round(min(roi, na.rm = TRUE), 2)),
+    `    ` = paste0("*(", title[which.min(roi)], ")*"),
     .groups = "drop"
   ) |> 
 
@@ -133,54 +151,7 @@ task_1_data |>
     values_from = Value
   ) |> 
   gt() |> 
-  cols_align(
-    align = "left",
-    columns = Statistic
-  ) |> 
-  cols_align(
-    align = "center",
-    columns = c(Original, Franchise)
-  )
-```
-
-@tbl-slate-specifics-summary contains more specific information i.e. maximum and minimum costs, best and worst ROIs, etc. Movie title is presented in italics alongside the figures.
-
-```{r}
-#| label: tbl-slate-specifics-summary
-#| tbl-cap: Movie specific statistics for the historical slate
-
-# this entire table was the bane of my existence
-# i hate rendering tables to PDF
-# Did you know that if you try to use a linebreak like \n in gt or \\\\ in kable, rendering to PDF will cause that new line to appear in a new cell in column 1?
-# instead of being sensible and remaining in the same cell?
-# I'm sure this could be fixed by fiddling with the PDF render options but like
-# why is that the default behaviour
-# insane 
-
-task_1_data |> 
-  group_by(franchise_status) |> 
-  summarise(
-    `Max Production Budget (USD millions)` = as.character(round(max(budget, na.rm = TRUE) / 1e6, 2)),
-    `*Max Production Budget - Film Title*` = paste0("*", title[which.max(budget)], "*"), # tried replacing title row names w/ whitespace, somehow made the table look even worse
-    `Minimum Production Budget (USD)` = format(min(budget, na.rm = TRUE), big.mark = ","),
-    `*Minimum Production Budget - Film Title*` = paste0("*", title[which.min(budget)], "*"),
-    `Best ROI` = as.character(round(max(roi, na.rm = TRUE), 2)),
-    `*Best ROI - Film Title*` = paste0("*", title[which.max(roi)], "*"),
-    `Worst ROI` = as.character(round(min(roi, na.rm = TRUE), 2)),
-    `*Worst ROI - Film Title*` = paste0("*", title[which.min(roi)], "*"),
-    .groups = "drop"
-  ) |> 
-  pivot_longer(
-    cols = -franchise_status,
-    names_to = "Statistic",
-    values_to = "Value"
-  ) |> 
-  pivot_wider(
-    names_from = franchise_status,
-    values_from = Value
-  ) |> 
-  gt() |> 
-  fmt_markdown(columns = c(Statistic, Original, Franchise)) |> 
+  fmt_markdown() |> 
   cols_align(
     align = "left",
     columns = Statistic
@@ -189,62 +160,31 @@ task_1_data |>
     align = "center",
     columns = c(Original, Franchise)
   ) |> 
-
-  # manually setting column widths because on top of everything else, LuaLaTeX has failed me here as well
+   # manually setting column widths because on top of everything else, LuaLaTeX has failed me here as well
   cols_width( 
-    Statistic ~ "2in",
-    Franchise ~ "2.4in",
-    Original ~ "2.4in" # google says these values should add up to 6.8in
+    Statistic ~ "2.3in",
+    Franchise ~ "2.2in",
+    Original ~ "2.3in" # googling says these values should add up to 6.8in to fit in a PDF correctly
+  ) |>
+  tab_options(
+    table.font.size = px(9)
+  ) |>
+  # changing the rows with a Statistic value that only has whitespace (i.e. the film title rows) to have a smaller font size 
+  tab_style(
+  style = cell_text(size = px(8)),
+  locations = cells_body(
+    columns = c(Original, Franchise),
+    rows = grepl("^\\s+$", Statistic) 
+    )
   )
-
 ```
+
 
 ### Budget and ROI plots
 
 ```{r}
-#| label: fig-basic-boxplots
-#| fig-cap: Boxplots showing distribution of budgets and Return on Investment (Revenue divided by Budget) for Original vs Franchise films
-#| layout-ncol: 2
-#| fig-subcap: 
-#| - Budget
-#| - ROI; dashed red line is at ROI = 1 i.e. films above the line made a profit, films below lost money
-
-task_1_data |> 
-  ggplot(aes(x = franchise_status, y = budget/1e6, fill = franchise_status)) +
-  geom_boxplot(show.legend = FALSE) +
-  labs(
-    x = "Film Status",
-    y = "Film budget (USD millions)"
-  ) +
-  theme_bw()
-
-task_1_data |> 
-  ggplot(aes(x = franchise_status, y = roi, fill = franchise_status)) +
-  geom_boxplot(show.legend = FALSE) +
-  geom_hline(yintercept = 1, colour = "red", linetype = "dashed") +
-  scale_y_continuous(
-    trans = transform_pseudo_log() # using a function from the scales package to compress the y axis, as we have some extreme outliers in Original movies for ROI
-  ) +
-  labs(
-    x = "Film Status",
-    y = "Return on Investment (Revenue/Budget)"
-  ) +
-  theme_bw()
-```
-
-From the plots in @fig-basic-boxplots, and given what we know about how films are coded (@nte-franchise-coding), we can draw some conclusions from the above plots:
-
-1. Sequels are generally more expensive to make than original films
-2. Sequels are generally a safer bet than original films; they have a higher ROI on average, and are less likely to fall below an ROI of 1 (meaning they generally at least make their money back)
-3. Original films have a higher ceiling for ROI
-    - This is probably at least somewhat a function of point 1
-    - Original movies are often made for smaller amounts, and if an original movie is a surprise hit and does reasonably well at the box office on a small budget, ROI will look enormous
-
-But what about genre? Does that have an effect on movie finances?
-
-```{r}
 #| label: fig-genre-plots
-#| fig-cap: Histograms showing distribution of budget costs and ROI for Original and Franchise films, faceted by film genre
+#| fig-cap: Histograms showing distribution of budget costs and ROI for Original and Franchise films, faceted by film genre; only Meridian's 5 focused genres are included
 #| layout-ncol: 2
 #| layout-nrow: 2
 #| fig-subcap: 
@@ -253,25 +193,34 @@ But what about genre? Does that have an effect on movie finances?
 #|  - "ROI: Franchise films"
 #|  - "ROI: Original films"
 
-# I should really set it up so that genres have the same colour in both plots, but it would take a lot of effort or a lot of vibe coding and then filling out an AI declaration, which amounts to the same thing
+# I should really set it up so that genres have the same colour in all plots, but it would take a lot of effort or a lot of vibe coding and then filling out an AI declaration, which amounts to the same thing
+meridian_genres <- c(
+  "Action",
+  "Animation",
+  "Comedy",
+  "Drama",
+  "Horror"
+)
 
 task_1_data |> 
-  filter(franchise_status == "Franchise") |> 
+  filter(
+    franchise_status == "Franchise",
+    primary_genre %in% meridian_genres
+  ) |> 
   ggplot(aes(x = budget/1e6, fill = primary_genre)) +
   geom_histogram(binwidth = 25, show.legend = FALSE) +
   # setting scale x manually allows for better comparison across plots
-  scale_x_continuous(limits = c(0, 400)) + # setting max limit to 400 as we know from earlier that one of the Pirates movies was the highest production budget at 380
+  scale_x_continuous(limits = c(0, 300)) + # setting max limit to 400 as we know from earlier that one of the Pirates movies was the highest production budget at 380
   facet_wrap(~ primary_genre) +
   labs(
     x = "Budget (USD millions)",
     y = "Number of films"
-  ) +
-  theme_bw()
+  )
 
 task_1_data |> 
   filter(
     franchise_status == "Original",
-    primary_genre != ""
+    primary_genre %in% meridian_genres
   ) |> 
   ggplot(aes(x = budget/1e6, fill = primary_genre)) +
   geom_histogram(binwidth = 25, show.legend = FALSE) +
@@ -280,11 +229,13 @@ task_1_data |>
   labs(
     x = "Budget (USD millions)",
     y = "Number of films"
-  ) +
-  theme_bw()
+  )
 
 task_1_data |> 
-  filter(franchise_status == "Franchise") |> 
+  filter(
+    franchise_status == "Franchise",
+    primary_genre %in% meridian_genres
+  ) |> 
   ggplot(aes(x = roi, fill = primary_genre)) +
   geom_histogram(show.legend = FALSE) +
   scale_x_continuous(
@@ -297,13 +248,12 @@ task_1_data |>
   labs(
     x = "ROI",
     y = "Number of films"
-  ) +
-  theme_bw()
+  )
 
 task_1_data |> 
   filter(
     franchise_status == "Original",
-    primary_genre != ""
+    primary_genre %in% meridian_genres
   ) |> 
   ggplot(aes(x = roi, fill = primary_genre)) +
   geom_histogram(show.legend = FALSE) +
@@ -317,35 +267,18 @@ task_1_data |>
   labs(
     x = "ROI",
     y = "Number of films"
-  ) +
-  theme_bw()
+  )
 ```
-
-We already knew from @tbl-slate-overall-summary what genres appeared the most for Franchise and Original movies. @fig-genre-plots shows that while Drama is the most popular genre for Original films, Action isn't far behind in terms of the number of movies made. @fig-genre-plots-2 also might explain *why* Drama is such a popular genre for Original movies; there's a lot of low-budget movies Drama movies being made! The same budget pattern can be seen for Original Comedy films, although interestingly they seem to differ in terms of ROI pattern. It seems more likely that you'll make your money back on an original comedy than on an original drama. The same is not true for franchise comedies; comedy sequels seem to be the riskiest investment, with a much higher percentage of films falling below the magic ROI equals one line than for any other Franchise genre.
 
 ### Slate composition over time
 
-As we saw in @fig-genre-plots, there are a lot of genres in our dataset, many of which don't have many films at all. In order to explore shifts in slate composition, we just want to look at our top genres so the plot doesn't become a tangled mess. The number of genres chosen was eyeballed from what looked relevant in the plots above (landed on 5), and those genres are:
+We wante to look at how the composition of the historical slate by genre has changed over time, with a specific focus on the genres Meridian is interested in.
 
-- Action
-- Adventure
-- Comedy
-- Drama
-- Horror
-
-Worth noting is that although we have some data from 2015 on, it is not complete data and is therefore not included in @fig-genre-line-chart. It is unclear if the data we have from 2014 is fully complete, and some of the drops in numbers seen for genres like Adventure and Drama should therefore be taken with a grain of salt.
+Worth noting is that although we have some data from 2015 on, it is not complete data and is therefore not included in @fig-genre-line-chart as it skews visual temporal analysis. It is unclear if the data we have from 2014 is fully complete, but it has been included until we are given a compelling reason to exclude it.
 
 ```{r}
 #| label: fig-genre-line-chart
-#| fig-cap: Line chart showing trend in genre releases over time; top 5 genres by total count are highlighted; film releases have been aggregated into 5 year blocks to make trends more visible
-
-NUMBER_OF_GENRES <- 5
-
-top_genres <- task_1_data |> 
-  filter(!is.na(primary_genre), primary_genre != "") |> 
-  count(primary_genre, sort = TRUE) |> 
-  slice_max(n, n = NUMBER_OF_GENRES) |> 
-  pull(primary_genre)
+#| fig-cap: Line chart showing trend in genre releases over time; the 5 genres Meridian is focused on are highlighted; film releases have been aggregated into 5 year blocks to make trends more visible
 
 genre_counts <- task_1_data |> 
   filter(
@@ -357,12 +290,12 @@ genre_counts <- task_1_data |>
 
 ggplot(genre_counts, aes(x = year_period, y = n, group = primary_genre)) +
   geom_line(
-    data = filter(genre_counts, !primary_genre %in% top_genres),
+    data = filter(genre_counts, !primary_genre %in% meridian_genres),
     colour = "grey",
     alpha = 0.5
   ) +
   geom_line(
-    data = filter(genre_counts, primary_genre %in% top_genres),
+    data = filter(genre_counts, primary_genre %in% meridian_genres),
     aes(colour = primary_genre),
     linewidth = 1
   ) +
@@ -370,8 +303,13 @@ ggplot(genre_counts, aes(x = year_period, y = n, group = primary_genre)) +
     x = "Year of release",
     y = "Number of films",
     colour = "Primary genre"
-  ) +
-  theme_bw()
+  )
+
+task_1_data |> 
+  group_by(release_year, franchise_status) |> 
+  summarise(median_budget = median(budget)/1e6) |>
+  ggplot(aes(x = release_year, y = median_budget, colour = franchise_status)) +
+  geom_smooth(se = FALSE)
 ```
 
 ```{r}
@@ -400,10 +338,18 @@ ggplot(status_counts, aes(x = release_year, y = n, fill = franchise_status)) +
     x = "Year of release",
     y = "Percentage of all releases in a year",
     fill = "Franchise Status"
-  ) +
-  theme_bw()
+  )
 ```
 
+### Summary
+
+From the plots in @fig-basic-boxplots, and given what we know about how films are coded (@nte-franchise-coding), we can draw some conclusions from the above plots:
+
+1. Sequels are generally more expensive to make than original films
+2. Sequels are generally a safer bet than original films; they have a higher ROI on average, and are less likely to fall below an ROI of 1 (meaning they generally at least make their money back)
+3. Original films have a higher ceiling for ROI
+    - This is probably at least somewhat a function of point 1
+    - Original movies are often made for smaller amounts, and if an original movie is a surprise hit and does reasonably well at the box office on a small budget, ROI will look enormous
 
 ## Task 2
 
@@ -411,8 +357,37 @@ Budget data are often skewed, and the median is often more meaningful than the m
 Here I will be using bootstraping to find 95% interval estimate for the difference in median budget between the two groups. As bootstraping simulates repeated samples from a population like the csv provided here, it can help us to describe the uncertainity in the data.
 
 ```{r}
-#| label: tbl-budget-status-summary
+#| label: fig-basic-boxplots
+#| fig-cap: Boxplots showing distribution of budgets and Return on Investment (Revenue divided by Budget) for Original vs Franchise films
+#| layout-ncol: 2
+#| fig-subcap: 
+#| - Budget
+#| - ROI; dashed red line is at ROI = 1 i.e. films above the line made a profit, films below lost money
 
+task_1_data |> 
+  ggplot(aes(x = franchise_status, y = budget/1e6, fill = franchise_status)) +
+  geom_boxplot(show.legend = FALSE) +
+  labs(
+    x = "Film Status",
+    y = "Film budget (USD millions)"
+  ) 
+
+task_1_data |> 
+  ggplot(aes(x = franchise_status, y = roi, fill = franchise_status)) +
+  geom_boxplot(show.legend = FALSE) +
+  geom_hline(yintercept = 1, colour = "red", linetype = "dashed") +
+  scale_y_continuous(
+    trans = transform_pseudo_log(), # using a function from the scales package to compress the y axis, as we have some extreme outliers in Original movies for ROI
+    breaks = c(0, 1, 10, 100, 1000, 10000, 20000)
+  ) +
+  labs(
+    x = "Film Status",
+    y = "Return on Investment\n(Revenue/Budget)"
+  )
+```
+
+
+```{r}
 clean_data_t2 <- data |>
   dplyr::select(franchise_status,budget) |>
   mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
@@ -422,13 +397,6 @@ clean_data_t2 <- data |>
   filter(!is.na(franchise_status), !is.na(budget))
 
 
-t2_sum_table <- clean_data_t2 |> 
-  group_by(franchise_status) |> 
-  summarise(
-    observations = n(),
-    median = median(budget, na.rm = TRUE),
-    sd = sd(budget, na.rm = TRUE)
-  )
 
 ```
 
@@ -436,7 +404,7 @@ t2_sum_table <- clean_data_t2 |>
 point_est_t2 <- t2_sum_table$median[t2_sum_table$franchise_status == "Franchise"] - t2_sum_table$median[t2_sum_table$franchise_status == "Original"]
 ```
 
-As interpreted from the @fig-basic-boxplots (a) and the @tbl-budget-status-summary, the 'original' franchise status have the lower median which shows that the production budgets are biased towards the 'franchise' category. To confirm this we will use bootstraping. The point estimate of the data is `{r} point_est_t2` which we will use to confirm if bootstarped estimate is similar or not. If yes, then the budget allocation is truely are leaned towards 'franchise' category.
+As interpreted from the @fig-basic-boxplots and the @tbl-slate-overall-summary, the 'original' franchise status have the lower median which shows that the production budgets are biased towards the 'franchise' category. To confirm this we will use bootstraping. The point estimate of the data is `{r} point_est_t2` which we will use to confirm if bootstarped estimate is similar or not. If yes, then the budget allocation is truely are leaned towards 'franchise' category.
 
 ```{r}
 
@@ -477,7 +445,6 @@ bootstrap_results |>
   geom_vline(xintercept = point_est_t2)+
   geom_vline(xintercept = ci_95[1], linetype = "dashed")+
   geom_vline(xintercept = ci_95[2], linetype = "dashed")+
-  theme_minimal() +
   labs(
     title = "Bootstrap Distribution: Difference in Median Budgets",
     subtitle = "Franchise Median - Original Median (Simple line = observed, Dashed = 95% CI)",
@@ -795,20 +762,6 @@ glimpse(task4_data)
 ```
 
 The new flop variable only has two possible outcomes, which means it can be modeled by a Bernoulli distribution, where the parameter p measures the probability that a move is a flop. Hence, logistic regression is the appropriate choice as the log function $\log\left(\frac{p_i}{1 - p_i}\right)$ ensures the predicted probabilities remain between 0 and 1. The linear regression is not suitable as it assumes outcomes are continuous and normally distributed, while the flop variable only takes 0 and 1. Poisson regression is also not suitable as it is used when the outcome is a count with no upper limit. 
-
-```{r, warning = FALSE}
-library(brms)
-library(bayesplot)
-library(posterior)
-library(yardstick)
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(performance)
-library(see)
-library(patchwork)
-
-```
 
 ```{r}
 task4_data <- task4_data |> 
