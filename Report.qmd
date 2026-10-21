@@ -3,7 +3,8 @@ title: Assignment-2
 author: Group-036
 format: 
   html: default
-  pdf: default
+  pdf: 
+    number-sections: true
 execute:
   echo: false
   warning: false
@@ -182,6 +183,12 @@ task_1_data |>
 
 ### Budget and ROI plots
 
+```{=latex}
+\begingroup
+\captionsetup[figure]{font=footnotesize}
+\captionsetup[subfigure]{font=scriptsize}
+```
+
 ```{r}
 #| label: fig-genre-plots
 #| fig-cap: Histograms showing distribution of budget costs and ROI for Original and Franchise films, faceted by film genre; only Meridian's 5 focused genres are included
@@ -192,8 +199,8 @@ task_1_data |>
 #|  - "Budget: Original films"
 #|  - "ROI: Franchise films"
 #|  - "ROI: Original films"
+#| fig-pos: 'H'
 
-# I should really set it up so that genres have the same colour in all plots, but it would take a lot of effort or a lot of vibe coding and then filling out an AI declaration, which amounts to the same thing
 meridian_genres <- c(
   "Action",
   "Animation",
@@ -270,15 +277,29 @@ task_1_data |>
   )
 ```
 
+```{=latex}
+\endgroup
+```
+
 ### Slate composition over time
 
-We wante to look at how the composition of the historical slate by genre has changed over time, with a specific focus on the genres Meridian is interested in.
+We wanted to look at how the composition of the historical slate by genre has changed over time, with a specific focus on the genres Meridian is interested in.
 
 Worth noting is that although we have some data from 2015 on, it is not complete data and is therefore not included in @fig-genre-line-chart as it skews visual temporal analysis. It is unclear if the data we have from 2014 is fully complete, but it has been included until we are given a compelling reason to exclude it.
 
+```{=latex}
+\begingroup
+\captionsetup[figure]{font=footnotesize}
+\captionsetup[subfigure]{font=scriptsize}
+```
+
 ```{r}
 #| label: fig-genre-line-chart
-#| fig-cap: Line chart showing trend in genre releases over time; the 5 genres Meridian is focused on are highlighted; film releases have been aggregated into 5 year blocks to make trends more visible
+#| fig-cap: Line charts showing changing composition of slate over time; film release dates have been aggregated into 5 year blocks to make trends more visible
+#| layout-ncol: 2
+#| fig-subcap:
+#|  - Line chart showing trend in genre releases over time; the 5 genres Meridian is focused on are highlighted
+#|  - Smoothed line plot showing median budget for Original vs Franchise films over the last ~50 years
 
 genre_counts <- task_1_data |> 
   filter(
@@ -309,7 +330,12 @@ task_1_data |>
   group_by(release_year, franchise_status) |> 
   summarise(median_budget = median(budget)/1e6) |>
   ggplot(aes(x = release_year, y = median_budget, colour = franchise_status)) +
-  geom_smooth(se = FALSE)
+  geom_smooth(se = FALSE) +
+  labs(
+    x = "Release Year",
+    y = "Median Budget\n(USD millions)",
+    colour = "Franchise Status"
+  )
 ```
 
 ```{r}
@@ -341,17 +367,21 @@ ggplot(status_counts, aes(x = release_year, y = n, fill = franchise_status)) +
   )
 ```
 
+```{=latex}
+\endgroup
+```
+
 ### Summary
 
-From the plots in @fig-basic-boxplots, and given what we know about how films are coded (@nte-franchise-coding), we can draw some conclusions from the above plots:
+From the plots in this section, and given what we know about how films are coded (@nte-franchise-coding), we can draw some conclusions already.
 
-1. Sequels are generally more expensive to make than original films
-2. Sequels are generally a safer bet than original films; they have a higher ROI on average, and are less likely to fall below an ROI of 1 (meaning they generally at least make their money back)
-3. Original films have a higher ceiling for ROI
-    - This is probably at least somewhat a function of point 1
-    - Original movies are often made for smaller amounts, and if an original movie is a surprise hit and does reasonably well at the box office on a small budget, ROI will look enormous
+Sequels are generally more expensive to make than original films, and are generally a safer bet than original films; they have a higher ROI on average, and are less likely to fall below an ROI of 1 (meaning they generally at least make their money back) (@tbl-slate-overall-summary and @fig-genre-plots). However, original films have much higher variability in ROI and may represent a riskier but more lucrative investment strategy.
 
-## Task 2
+The three genres that have consistently seen the most films released over the last 25+ years are Action, Comedy and Drama films (@fig-genre-line-chart-1), all of which Meridian is invested in. 
+
+There was a significant spike in the relative amount of Franchise films being released around 1990, which then completely flattened out prior to 2000 (@fig-status-area-chart-2). With the recent trend towards a higher percentage of releases being Franchise movies, we should look towards that period in the 90s when developing our strategy for the next decade. This will be discussed more in @sec-task-2.
+
+## Task 2 {#sec-task-2}
 
 Budget data are often skewed, and the median is often more meaningful than the mean when describing a budget for typical franchise and original categories. 
 Here I will be using bootstraping to find 95% interval estimate for the difference in median budget between the two groups. As bootstraping simulates repeated samples from a population like the csv provided here, it can help us to describe the uncertainity in the data.
@@ -397,7 +427,13 @@ clean_data_t2 <- data |>
   filter(!is.na(franchise_status), !is.na(budget))
 
 
-
+t2_sum_table <- clean_data_t2 |> 
+  group_by(franchise_status) |> 
+  summarise(
+    observations = n(),
+    median = median(budget, na.rm = TRUE),
+    sd = sd(budget, na.rm = TRUE)
+  )
 ```
 
 ```{r}
@@ -468,7 +504,7 @@ The advice to the leadership is to focus on original movies that have high poten
 
 Choosing more originals carefully and strategically, provides more room for higher profits and gradually trying and testing original category in different genre and creating an optimal budget allocation for movies can increase the profits with a high margin. 
 
-## Task 3
+## Task 3 {#sec-task-3}
 ### Part 1: Production Budget Modelling
 With the goal to construct a model that models an appropriate movie budget distribution, a competitor budget analysis was conducted as a credible reference point in line with industry standards. This was performed by sampling the budgeting model from Universal Pictures Studios, which is a direct industry competitor, and fitting a realistic probability model for Meridian to follow. 
 
@@ -748,7 +784,7 @@ Based on the analysis, it is recommended to select the Gamma distribution for th
 
 In this sample, 25% of action films had an ROI of 0.576 or lower. We are 95% confident the true 25th percentile of the ROI for all action films across all studios lies between 0.463 and 0.679. For a conservative risk figure to plan around, Finance should consider 0.463 (46.3% return) for an underperforming Action film. 
 
-## Task 4
+## Task 4 {#sec-task-4}
 
 ```{r}
 
