@@ -9,5 +9,46 @@ format: html
 1. Aryaman Dhindsa
 2. Alex 
 3. Phi 
-
 (Sorry guys i am not good with names and spelling ;-)
+
+# Link to Github Repo
+This is the link to our [github repo](https://github.com/adhi0021/Stat-Thinking-Assignment-5242) so that you can see we contributed equally to the project.
+
+# Task allocation
+
+| Task | Analysts | Reviewers | Target completion date | Completion type |
+|:---|:---|:---|:---|:---|
+| **Task 1** | Alex | Aryaman | 15th October | Draft
+| **Task 2** | Aryaman | Phi | 16th October | Draft
+| **Task 3** | Phi | Aryaman, Alex | 16th October | Draft
+| **Task 4** | Phi | Aryaman, Alex | 20th October | Draft
+| **Task 1** | Alex | Aryaman, Phi | 22th October | Final
+| **Task 2** | Aryaman | Phi, Alex | 22th October | Final
+| **Task 3** | Phi | Aryaman, Alex | 22th October | Final
+| **Task 4** | Phi, Aryaman, Alex | Phi, Aryaman, Alex | 23th October | Final
+| **Appendix** | Aryaman | Phi, Alex | 22th October | Draft
+| **Final merging, formatting & reproducibility check** | - | - | 23th October | Final
+| **Appendix** | Aryaman | Phi, Alex | 23th October | Final
+
+
+# Contribution Summary
+
+This section be seen on github commit history and every member of the team confirms with this sentence that they have put approximately equal number of hours to create this project and are satisfied with the team effort.
+
+| Member name | Specific tasks performed | Hours contributed (approx.) |
+|:---|:---|:---|
+| Aryaman | | |
+| Alex | | |
+| Phi | | |
+
+
+# Cross-review table
+
+By signing below, you certify that you have reviewed the work of your teammates and that the final report represents a unified effort.
+
+| Task | Reviewed by (name of primary Reviewer) | Key feedback provided |
+|:---|:---|:---|
+| **Task 1** | | |
+| **Task 2** | | |
+| **Task 3** | | |
+| **Task 4** | | |
