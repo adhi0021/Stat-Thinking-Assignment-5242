@@ -804,7 +804,7 @@ The new flop variable only has two possible outcomes, which means it can be mode
 
 ```{r}
 task4_data <- task4_data |> 
-  filter(!is.na(cast_size), primary_genre %in% meridian_genres ) |> 
+  filter(!is.na(cast_size), primary_genre %in% meridian_genres ) |> #filter for genres analysed in task 1
   mutate(log_budget = log(budget)) |>
   mutate(across(c(log_budget, cast_size),
                 ~ (.x - mean(.x)) / sd(.x),
@@ -843,10 +843,16 @@ bayes_logistic <- brm(
   data = task4_data,
   family = bernoulli(),
   prior = c(
-    prior(normal(0, 2), class = Intercept),
+    prior(normal(0, 1.5), class = Intercept),
     prior(normal(0, 1), class = b)
-  )
+  ),
+  chains = 4,
+  iter = 2000,
+  seed = 2026,
+  refresh = 0
 )
+
+#choose weakly prior can be selected (can be anything)
 
 ```
 ```{r}
@@ -854,6 +860,14 @@ summary(bayes_logistic)
 plot(bayes_logistic)
 ```
 ```{r}
-pp_check(bayes_logistic)
+#credible interval
+library(sjPlot)
+tab_model(bayes_logistic)
 ```
+
+```{r}
+library(performance)
+compare_performance(bayes_logistic,freq_logistic_model)
+```
+
 
