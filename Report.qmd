@@ -800,23 +800,24 @@ freq_logistic_model <- glm(
 
 ```
 
-```{r}
+```{r, eval = FALSE}
+#move to appendix
 summary(freq_logistic_model)
 ```
+#### Frequentist Regression Equation
 
-Using the 5% significant level, franchise status, cast size, and the Animation, Comedy and Horror genres are significantly associated with the probability of a film flopping. The Drama genre and Log budget are not significantly associate with the odds of a movie flopping due to the p values being greater after adjusting for other predictors. 
-
-(confidence interval in bayesian credible interval comparison)
-
-```{r}
-#| fig.width: 12
-#| fig.height: 12
-check_model(freq_logistic_model) #may remove
-```
-
-
-The frequentist model reproduces the observed numbers of flops and non-flops. All VIFs are close to 1, which suggests no evidence of collinearity. Most binned residuals fall within the error bounds with a few bins around 20–30% fall below the lower bound of predicted probabilities, suggesting the model slightly overestimates the probability of a flop in this range. The homogeneity of variance and normality plots are not relevant for a binary outcome. We also assume the films are independent and that each numeric predictor has a linear relationship with the log-odds of a flop.
-### Bayesian Regression Model
+$$
+\log \left( \frac{\hat{p}_i}{1-\hat{p}_i} \right)
+=
+-2.241
+- 0.678 \text{Animation}_i
+- 0.327 \text{Comedy}_i
+- 0.001 \text{Drama}_i
+- 1.100 \text{Horror}_i
++ 1.411 \text{Original}_i
+- 0.017 \text{log budget}_i
+- 0.502 \text{cast size}_i
+$$
 
 ```{r, include=FALSE}
 library(brms)
@@ -836,25 +837,57 @@ bayes_logistic <- brm(
 
 ```
 
-```{r}
+```{r, eval = FALSE}
+#remove
 summary(bayes_logistic)
 plot(bayes_logistic) #remove
 ```
+#### Bayesian Regression Equation
+
+Weakly informative priors were placed on the log-odds scale: Normal(0, 1.5) for the intercept and Normal(0, 1) for each slope.
+$$
+\log \left( \frac{\hat{p}_i}{1-\hat{p}_i} \right)
+=
+-2.17
+- 0.63 \text{Animation}_i
+- 0.30 \text{Comedy}_i
++ 0.02 \text{Drama}_i
+- 1.05 \text{Horror}_i
++ 1.32 \text{Original}_i
+- 0.02 \text{log budget}_i
+- 0.50 \text{cast size}_i.
+$$
 
 ```{r}
 #confidence and credible interval comparison
 
 tab_model(freq_logistic_model, bayes_logistic)
 ```
+
+
+Using the 5% significant level, franchise status, cast size, and the Animation, Comedy and Horror genres are significantly associated with the ods of a film flopping. The Drama genre and Log budget coefficient are not significantly associate with the odds of a movie flopping due to the p values being greater than the significant level after adjusting for other predictors. 
+
+Coefficient Odd ratio interpretation:
+Animation (frequentist OR = 0.51; Bayesian OR = 0.53): Animated films have about half the odds of flopping compared with Action films.
+Comedy (OR = 0.72; 0.74): Comedies have about 26–28% lower odds of flopping than Action films.
+Drama (OR = 1.00; 1.02): There is no meaningful difference in the odds of flopping between dramas and Action films.
+Horror (OR = 0.33; 0.35): Horror films have about 65–67% lower odds of flopping than Action films.
+Original (OR = 4.10; 3.71): Original films have about 3.7–4.1 times the odds of flopping compared with franchise films.
+log budget z (OR = 0.98; 0.98): A one standard deviation increase in log budget is associated with almost no change in the odds of flopping.
+cast size z (OR = 0.61; 0.61): A one standard deviation increase in cast size is associated with odds of flopping about 0.61 times as large, a 39% decrease.
+
+For original films, the 95% confidence interval for the odds ratio is [2.28, 8.16] and the 95% credible interval is [2.18, 6.65]. For cast size, the intervals are [0.52, 0.70] and [0.52, 0.71]. The cast size intervals are almost identical as the large sample size increases the weight of the data compared the weakly informative prior. The Original intervals differ more where the credible interval is narrower and closer to 1 because the Normal(0, 1) prior shrinks the coefficient. It is noteworthy that confidence intervals calculate the true OR in 95% of repeated samples while the credible interval uses the model, priors and data to calculate the posterior probability that the true OR lies within the interval.
+
+
 Tested Posterior probability statement: Calculate the posterior probability that the odds ratio for log budget is greater than 1.2 (a 20% increase in the odds of a flop) or less than 0.8 (a 20% decrease).
 ```{r}
 draws4 <- as_draws_df(bayes_logistic)
-t4mean1 <- mean(exp(draws4$b_log_budget.z) > 1.2) |> round(4)
-t4mean2 <- mean(exp(draws4$b_log_budget.z) < 0.8) |> round(4)
+t4mean1 <- mean(exp(draws4$b_log_budget.z) > 1.2) |> round(4) |>   format(scientific = FALSE)
+t4mean2 <- mean(exp(draws4$b_log_budget.z) < 0.8) |>   format(scientific = FALSE)
 ```
-Given the data and our prior, the probability that a 1 standard deviation increase in log budget increases the odds of a flop by more than 20% is `r t4mean1`, and the probability that it decreases the odds by more than 20% is `r ifelse(t4mean2 < 0.001, "below 0.001", t4mean1)`.
+Given the data and our prior, the probability that a 1 standard deviation increase in log budget increases the odds of a flop by more than 20% is `r t4mean1`, and the probability that it decreases the odds by more than 20% is `r t4mean2`.
 
-### Confusion Matrix
+#### Confusion Matrix Analysis
 
 ```{r}
 flop_rate <- mean(task4_data$flop == "Flop")
@@ -888,11 +921,6 @@ class_metrics <- function(cm) {
 }
 # Confusion matrix
 conf_mat(task4_data2$flop, task4_data2$Prob_flop, threshold = flop_rate)
-
-# Accuracy, sensitivity, specificity and precision
-flop_metrics <- metric_set(accuracy, sens, spec, precision)
-
-flop_metrics(task4_data2, truth = flop, estimate = Pred_flop, event_level = "second") |> gt()
 ```
 
 ```{r}
@@ -907,8 +935,40 @@ lapply(thresholds, function(t) {
   bind_rows() |> 
   relocate(Threshold)
 ```
+
 As only 26% of films were flops, a 0.5 threshold predicts no flops at all (sensitivity of 0), so the model is useless at this threshold because flops are not flagged. A threshold of 0.4 identifies only 6% of flops, which is too low given that approving a film that flops costs far more than rejecting a film that would have succeeded financially. Lowering the threshold to 0.1 catches 97% of flops but flags almost every film, however the specificity of 0.10 and accuracy of 0.33 would not approve enough safe films. At a threshold of 0.26, the model correctly identifies 76% of flops (sensitivity 0.76), but only 48% of non-flops are correctly cleared (specificity 0.48), and only 34% of flagged films actually flop (precision 0.34). Overall accuracy falls from 0.74 to 0.55, which is expected when prioritising the rarer outcome. A threshold of 0.3 gives a more even balance between sensitivity (0.61) and specificity (0.64), but 0.26 is preferred because its higher sensitivity catches more flops, where approving flops is the more expensive mistake.
+
+#### Hypothetical Models
+
+```{r}
+
+pitches <- tibble(
+  pitch = c("Pitch A", "Pitch B", "Pitch C"),
+  primary_genre = c("Action", "Action", "Comedy"),
+  franchise_status = c("Franchise", "Original", "Original"),
+  budget = c(20000000, 20000000, 20000000),
+  cast_size = c(30, 30, 30)
+) |> 
+  mutate(log_budget = log(budget)) |> 
+  mutate(across(c(log_budget, cast_size),
+                ~ (.x - mean(task4_data[[cur_column()]])) / sd(task4_data[[cur_column()]]),
+                .names = "{.col}.z"))
+
+ep_pitch <- posterior_epred(bayes_logistic, newdata = pitches)
+
+pitch_pred <- pitches |> 
+  dplyr::select(pitch, primary_genre, franchise_status, budget, cast_size) |> 
+  mutate(
+    Prob_flop = colMeans(ep_pitch),
+    Lower = apply(ep_pitch, 2, quantile, probs = 0.025),
+    Upper = apply(ep_pitch, 2, quantile, probs = 0.975),
+    Flagged = ifelse(Prob_flop > flop_rate, "Flop risk", "Not flagged")
+  )
+
+pitch_pred |> gt()
 
 
 ```
+The model estimates the chance that a film will flop based on its genre, cast size, budget, and whether it is a franchise or an original. For each pitch, it gives a risk estimate and a range that we can be 95% confident contains the true flop risk. Since 26% of films in our data flopped, any pitch with a higher estimated risk is flagged. For example, pitch B is flagged with an above-average 28% chance of flopping, and should therefore not be greenlit. Pitch A has a low 10% chance of flopping and should be greenlit. Pitch C’s 22% chance is close to the average, so it should be greenlit with caution. Because our cut-off flags any film with above-average risk, Pitch C should still be reasonable to produce.
 
+However, the model cannot reliably predict whether an individual film will flop. It only uses four factors, which explain a small part of why films flop. Other factors, such as script quality, casting star power and production quality are likely to matter more but are difficult to measure objectively. The model also predicts general patterns in flop trends, which means past trends are not indicative of future outcomes. Hence, it should be used as a supplementary factor alongside industry expertise to evaluate the film. 
