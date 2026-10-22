@@ -866,17 +866,6 @@ task4_data2 <- task4_data |>
                        levels = c("Not flop", "Flop"))
   )
 
-# Confusion matrix
-conf_mat(task4_data2$flop, task4_data2$Prob_flop, threshold = flop_rate)
-
-# Accuracy, sensitivity, specificity and precision
-flop_metrics <- metric_set(accuracy, sens, spec, precision)
-
-flop_metrics(task4_data2, truth = flop, estimate = Pred_flop, event_level = "second") |> gt()
-```
-
-```{r}
-#threshold
 conf_mat <- function(actual, prob, threshold = 0.5) {
   table(
     Predicted = factor(ifelse(prob > threshold, "Flop", "Not flop"), levels = c("Not flop", "Flop")),
@@ -897,6 +886,17 @@ class_metrics <- function(cm) {
     F1 = 2 * precision * sensitivity / (precision + sensitivity)
   )
 }
+# Confusion matrix
+conf_mat(task4_data2$flop, task4_data2$Prob_flop, threshold = flop_rate)
+
+# Accuracy, sensitivity, specificity and precision
+flop_metrics <- metric_set(accuracy, sens, spec, precision)
+
+flop_metrics(task4_data2, truth = flop, estimate = Pred_flop, event_level = "second") |> gt()
+```
+
+```{r}
+#threshold
 
 thresholds <- c(0.5, 0.4, 0.3, flop_rate, 0.1)
 
@@ -908,3 +908,7 @@ lapply(thresholds, function(t) {
   relocate(Threshold)
 ```
 As only 26% of films were flops, a 0.5 threshold predicts no flops at all (sensitivity of 0), so the model is useless at this threshold because flops are not flagged. A threshold of 0.4 identifies only 6% of flops, which is too low given that approving a film that flops costs far more than rejecting a film that would have succeeded financially. Lowering the threshold to 0.1 catches 97% of flops but flags almost every film, however the specificity of 0.10 and accuracy of 0.33 would not approve enough safe films. At a threshold of 0.26, the model correctly identifies 76% of flops (sensitivity 0.76), but only 48% of non-flops are correctly cleared (specificity 0.48), and only 34% of flagged films actually flop (precision 0.34). Overall accuracy falls from 0.74 to 0.55, which is expected when prioritising the rarer outcome. A threshold of 0.3 gives a more even balance between sensitivity (0.61) and specificity (0.64), but 0.26 is preferred because its higher sensitivity catches more flops, where approving flops is the more expensive mistake.
+
+
+```
+
