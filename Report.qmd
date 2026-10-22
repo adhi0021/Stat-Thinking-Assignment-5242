@@ -24,6 +24,7 @@ library(yardstick)
 library(performance)
 library(see)
 library(patchwork)
+library(sjPlot)
 
 data <- read.csv("data/movies.csv")
 
@@ -779,12 +780,11 @@ mutate(
                     TRUE ~ "Not flop"),
     flop = factor(flop, levels = c("Not flop", "Flop"))
   )
-glimpse(task4_data)
 ```
 
 The new flop variable only has two possible outcomes, which means it can be modeled by a Bernoulli distribution, where the parameter p measures the probability that a move is a flop. Hence, logistic regression is the appropriate choice as the log function $\log\left(\frac{p_i}{1 - p_i}\right)$ ensures the predicted probabilities remain between 0 and 1. The linear regression is not suitable as it assumes outcomes are continuous and normally distributed, while the flop variable only takes 0 and 1. Poisson regression is also not suitable as it is used when the outcome is a count with no upper limit. 
 
-```{r}
+```{r, include=FALSE}
 task4_data <- task4_data |> 
   filter(!is.na(cast_size), primary_genre %in% meridian_genres ) |> #filter for genres analysed in task 1
   mutate(log_budget = log(budget)) |>
@@ -797,28 +797,28 @@ freq_logistic_model <- glm(
   family = binomial,
   data = task4_data
 )
+
+```
+
+```{r}
 summary(freq_logistic_model)
 ```
+
 Using the 5% significant level, franchise status, cast size, and the Animation, Comedy and Horror genres are significantly associated with the probability of a film flopping. The Drama genre and Log budget are not significantly associate with the odds of a movie flopping due to the p values being greater after adjusting for other predictors. 
 
-```{r, warning = FALSE}
-confint(freq_logistic_model)
+(confidence interval in bayesian credible interval comparison)
 
-exp(coef(freq_logistic_model))
-exp(confint(freq_logistic_model))
-
-```
 ```{r}
 #| fig.width: 12
 #| fig.height: 12
-check_model(freq_logistic_model)
+check_model(freq_logistic_model) #may remove
 ```
 
 
 The frequentist model reproduces the observed numbers of flops and non-flops. All VIFs are close to 1, which suggests no evidence of collinearity. Most binned residuals fall within the error bounds with a few bins around 20–30% fall below the lower bound of predicted probabilities, suggesting the model slightly overestimates the probability of a flop in this range. The homogeneity of variance and normality plots are not relevant for a binary outcome. We also assume the films are independent and that each numeric predictor has a linear relationship with the log-odds of a flop.
-### Bayesian REgression Model
+### Bayesian Regression Model
 
-```{r}
+```{r, include=FALSE}
 library(brms)
 bayes_logistic <- brm(
   flop ~ primary_genre + franchise_status + log_budget.z + cast_size.z,
@@ -834,22 +834,77 @@ bayes_logistic <- brm(
   refresh = 0
 )
 
-#choose weakly prior can be selected (can be anything)
-
 ```
+
 ```{r}
 summary(bayes_logistic)
-plot(bayes_logistic)
-```
-```{r}
-#credible interval
-library(sjPlot)
-tab_model(bayes_logistic)
+plot(bayes_logistic) #remove
 ```
 
 ```{r}
-library(performance)
-compare_performance(bayes_logistic,freq_logistic_model)
+#confidence and credible interval comparison
+
+tab_model(freq_logistic_model, bayes_logistic)
+```
+Tested Posterior probability statement: Calculate the posterior probability that the odds ratio for log budget is greater than 1.2 (a 20% increase in the odds of a flop) or less than 0.8 (a 20% decrease).
+```{r}
+draws4 <- as_draws_df(bayes_logistic)
+t4mean1 <- mean(exp(draws4$b_log_budget.z) > 1.2) |> round(4)
+t4mean2 <- mean(exp(draws4$b_log_budget.z) < 0.8) |> round(4)
+```
+Given the data and our prior, the probability that a 1 standard deviation increase in log budget increases the odds of a flop by more than 20% is `r t4mean1`, and the probability that it decreases the odds by more than 20% is `r ifelse(t4mean2 < 0.001, "below 0.001", t4mean1)`.
+
+### Confusion Matrix
+
+```{r}
+flop_rate <- mean(task4_data$flop == "Flop")
+
+task4_data2 <- task4_data |> 
+  mutate(
+    Prob_flop = colMeans(posterior_epred(bayes_logistic)),
+    Pred_flop = factor(ifelse(Prob_flop > flop_rate, "Flop", "Not flop"),
+                       levels = c("Not flop", "Flop"))
+  )
+
+# Confusion matrix
+conf_mat(task4_data2$flop, task4_data2$Prob_flop, threshold = flop_rate)
+
+# Accuracy, sensitivity, specificity and precision
+flop_metrics <- metric_set(accuracy, sens, spec, precision)
+
+flop_metrics(task4_data2, truth = flop, estimate = Pred_flop, event_level = "second") |> gt()
 ```
 
+```{r}
+#threshold
+conf_mat <- function(actual, prob, threshold = 0.5) {
+  table(
+    Predicted = factor(ifelse(prob > threshold, "Flop", "Not flop"), levels = c("Not flop", "Flop")),
+    Actual = factor(actual, levels = c("Not flop", "Flop"))
+  )
+}
 
+class_metrics <- function(cm) {
+  TP <- cm["Flop", "Flop"]; TN <- cm["Not flop", "Not flop"]
+  FP <- cm["Flop", "Not flop"]; FN <- cm["Not flop", "Flop"]
+  precision <- TP / (TP + FP)
+  sensitivity <- TP / (TP + FN)
+  data.frame(
+    Accuracy = (TP + TN) / sum(cm),
+    Sensitivity = sensitivity,
+    Specificity = TN / (TN + FP),
+    Precision = precision,
+    F1 = 2 * precision * sensitivity / (precision + sensitivity)
+  )
+}
+
+thresholds <- c(0.5, 0.4, 0.3, flop_rate, 0.1)
+
+lapply(thresholds, function(t) {
+  class_metrics(conf_mat(task4_data2$flop, task4_data2$Prob_flop, threshold = t)) |> 
+    mutate(Threshold = t)
+}) |> 
+  bind_rows() |> 
+  relocate(Threshold)
+```
+As only 26% of films were flops, a 0.5 threshold predicts no flops at all (sensitivity of 0), so the model is useless at this threshold because flops are not flagged. A threshold of 0.4 identifies only 6% of flops, which is too low given that approving a film that flops costs far more than rejecting a film that would have succeeded financially. Lowering the threshold to 0.1 catches 97% of flops but flags almost every film, however the specificity of 0.10 and accuracy of 0.33 would not approve enough safe films. At a threshold of 0.26, the model correctly identifies 76% of flops (sensitivity 0.76), but only 48% of non-flops are correctly cleared (specificity 0.48), and only 34% of flagged films actually flop (precision 0.34). Overall accuracy falls from 0.74 to 0.55, which is expected when prioritising the rarer outcome. A threshold of 0.3 gives a more even balance between sensitivity (0.61) and specificity (0.64), but 0.26 is preferred because its higher sensitivity catches more flops, where approving flops is the more expensive mistake.
