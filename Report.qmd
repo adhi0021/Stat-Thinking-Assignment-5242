@@ -511,7 +511,7 @@ Choosing more originals from horror genre in the slots for 2017 releases careful
 
 ## Task 3 {#sec-task-3}
 ### Part 1: Production Budget Modelling
-With the goal to construct a model that models an appropriate movie budget distribution, a competitor budget analysis was conducted as a credible reference point in line with industry standards. This was performed by sampling the budgeting model from Universal Pictures Studios, which is a direct industry competitor, and fitting a realistic probability model for Meridian to follow after similar data processing from previous analysis. 
+With the goal to construct a model that predicts an appropriate movie budget distribution, a competitor budget analysis was conducted as a credible reference point in line with industry standards. This was performed by sampling the budgeting model from Universal Pictures Studios, which is a direct industry competitor, and fitting a realistic probability model for Meridian to follow after similar data processing from previous analysis. 
 
 ```{r, warning = FALSE}
 #| fig-width: 5
@@ -528,7 +528,7 @@ ggplot(universal, aes(x = budget,)) +
 
 ```
 
-After data processing, the budget distribution is right skewed and only contain positive values. Therefore, exponential, Gamma, Log normal and  Weibull distribution can be selected for model evaluation. 
+After data processing, the budget distribution is right skewed and only contain positive values. Therefore, Exponential, Gamma and Weibull distribution were selected for model evaluation. 
 
 ```{r, warning = FALSE}
 #Fit plot
@@ -536,28 +536,18 @@ budget_normal <- fitdistr(
   universal$budget,
   densfun = "normal"
 )
-
-
 budget_exp <- fitdistr(
   universal$budget,
   densfun = "exponential"
 )
-
 budget_gamma <- fitdistr(
   universal$budget,
   densfun = "gamma"
 )
-
 budget_weibull <- fitdistr(
   universal$budget,
   densfun = "weibull"
 )
-
-budget_lognormal <- fitdistr(
-  universal$budget,
-  densfun = "lognormal"
-)
-
 ```
 
 ```{r}
@@ -567,186 +557,93 @@ budget_lognormal <- fitdistr(
 #qqplot
 qq_normal <- 
   ggplot(universal, aes(sample = budget)) +
-  stat_qq(
-    distribution = qnorm,
-    dparams = as.list(budget_normal$estimate)
-  ) +
-  stat_qq_line(
-    distribution = qnorm,
-    dparams = as.list(budget_normal$estimate)
-  ) +
+  stat_qq(distribution = qnorm,dparams = as.list(budget_normal$estimate)) +
+  stat_qq_line(distribution = qnorm,dparams = as.list(budget_normal$estimate)) +
   labs(title = "Normal")
 
 qq_exponential <- 
   ggplot(universal, aes(sample = budget)) +
-  stat_qq(
-    distribution = qexp,
-    dparams = as.list(budget_exp$estimate)
-  ) +
-  stat_qq_line(
-    distribution = qexp,
-    dparams = as.list(budget_exp$estimate)
-  ) +
+  stat_qq(distribution = qexp,dparams = as.list(budget_exp$estimate)) +
+  stat_qq_line(distribution = qexp,dparams = as.list(budget_exp$estimate)) +
   labs(title = "Exponential")
 
 qq_gamma <- 
   ggplot(universal, aes(sample = budget)) +
-  stat_qq(
-    distribution = qgamma,
-    dparams = as.list(budget_gamma$estimate)
-  ) +
-  stat_qq_line(
-    distribution = qgamma,
-    dparams = as.list(budget_gamma$estimate)
-  ) +
+  stat_qq(distribution = qgamma,dparams = as.list(budget_gamma$estimate)) +
+  stat_qq_line(distribution = qgamma,dparams = as.list(budget_gamma$estimate)) +
   labs(title = "Gamma")
 
 qq_weibull <- 
   ggplot(universal, aes(sample = budget)) +
-  stat_qq(
-    distribution = qweibull,
-    dparams = as.list(budget_weibull$estimate)
-  ) +
-  stat_qq_line(
-    distribution = qweibull,
-    dparams = as.list(budget_weibull$estimate)
-  ) +
+  stat_qq(distribution = qweibull,dparams = as.list(budget_weibull$estimate)) +
+  stat_qq_line(distribution = qweibull,dparams = as.list(budget_weibull$estimate)) +
   labs(title = "Weibull")
-
-qq_lognormal <- 
-  ggplot(universal, aes(sample = budget)) +
-  stat_qq(
-    distribution = qlnorm,
-    dparams = as.list(budget_lognormal$estimate)
-  ) +
-  stat_qq_line(
-    distribution = qlnorm,
-    dparams = as.list(budget_lognormal$estimate)
-  ) +
-  labs(title = "Log-normal")
-
-qq_normal+ qq_exponential + qq_gamma + qq_weibull + qq_lognormal
+qq_normal+ qq_exponential + qq_gamma + qq_weibull
 ```
-
-The qq plot indicates normal and log normal are the worst fits as tails deviate the most from the reference line. The Exponential and Gamma model have the best fist as the right tail have the smallest distance from the reference line and most of the points overlap with the line.
+The QQ-plot indicates normal was the worst fit as the tails deviated the most from the reference line. The other models had a similar fit as the right tail have a similar distance from the reference line and most of the points overlap with the line.
 
 ```{r}
 #fit AIC
-AIC(
-  budget_normal, 
-  budget_exp, 
-  budget_gamma, 
-  budget_weibull,
-  budget_lognormal
-) |> 
+AIC(budget_normal, budget_exp, budget_gamma, budget_weibull) |> 
   rownames_to_column(var = "model") |> 
-  arrange(AIC) |> 
-  gt()
+  arrange(AIC) |> gt()
 ```
-
-The Gamma model has lowest AIC, which paired with the fitting of the qqplot, which suggests that it is the best at fitting budget data. However, the Weibull model would also be sufficient as the AIC is slighly larger than the gamma distribution by 1. 
+The Gamma model has lowest AIC, which paired with the fitting of the QQ-plot, suggests that it is the best at fitting budget data. However, the Weibull model would also be sufficient as the AIC is slightly larger than the gamma distribution by 1. 
 
 ###  Part 2: Downside Risk Analysis for Action Movie ROI
-
 Action movies have been established as capital-intensive to produce, which can be proved as risky for budget investment in order to yield significant revenue. As a result, risk analysis into the bottom performing 25% movie ROI was performed across the entire film industry to model conservative target ROI to aim for, 
 
 ```{r}
 action_roi <- task_1_data |> 
-  filter(primary_genre == "Action", !is.na(roi)) |> 
-  pull(roi) 
-
+  filter(primary_genre == "Action", !is.na(roi)) |> pull(roi) 
 #observed ROI at 25% percentile
-observed_q <- quantile(action_roi, 0.25) |> 
-  round(3)
-
+observed_q <- quantile(action_roi, 0.25) |>   round(3)
 ```
 The observed 25% percentile of Action Movie ROI was `r observed_q`
 ```{r}
 #Bootstrap Test
 set.seed(5242)
-
 bootstrap_results <- tibble(
   replicate = 1:1000
 ) |>
-  mutate(
-    boot_q = map_dbl(replicate, function(i) {
-      action_boot <- sample(
-        x = action_roi,
-        size = length(action_roi),
-        replace = TRUE
-      )
-
-      quantile(action_boot, probs = 0.25)
-    })
+  mutate(boot_q = map_dbl(replicate, function(i) {
+      action_boot <- sample(x = action_roi,size = length(action_roi),replace = TRUE)
+      quantile(action_boot, probs = 0.25)})
   )
-
 bootstrap_ci <- bootstrap_results |>
-  summarise(
-    lower = quantile(boot_q, probs = 0.025),
-    upper = quantile(boot_q, probs = 0.975)
-  )
+  summarise(lower = quantile(boot_q, probs = 0.025),upper = quantile(boot_q, probs = 0.975))
 
 #Method 2: SE multiplier
 t_multiplier <- qt(0.975, df = length(action_roi) - 1)
 
 bootstrap_se_ci <- bootstrap_results |>
-  summarise(
-    boot_se = sd(boot_q),
-    lower = observed_q - t_multiplier * boot_se,
-    upper = observed_q + t_multiplier * boot_se
-  )
-
+  summarise(boot_se = sd(boot_q),lower = observed_q - t_multiplier * boot_se,upper = observed_q + t_multiplier * boot_se)
 #Make into table
-tibble(
-  Calculation_method = c("Percentile bootstrap", "Bootstrap SE (t)"),
-  Lower_Bound = c(
-    bootstrap_ci$lower,
-    bootstrap_se_ci$lower
-  ),
-  Upper_bound = c(
-    bootstrap_ci$upper,
-    bootstrap_se_ci$upper
-  )
-) |> 
-  gt()
+tibble(Calculation_method = c("Percentile bootstrap", "Bootstrap SE (t)"),
+  Lower_Bound = c(bootstrap_ci$lower,bootstrap_se_ci$lower),
+  Upper_bound = c(bootstrap_ci$upper,bootstrap_se_ci$upper)) |> gt()
 ```
 
 ```{r}
 #| fig-width: 5
 #| fig-height: 2.5
 #| fig-align: center
-
 #plot bootstrap
 q3plot1 <- ggplot(bootstrap_results, aes(x = boot_q)) +
   geom_histogram(boundary = 0, binwidth = 0.025) +
-  geom_vline(
-    xintercept = observed_q,
-    linewidth = 1,
-    linetype = "dashed"
-  ) +
-  geom_vline(
-    xintercept = c(bootstrap_ci$lower, bootstrap_ci$upper),
-    linewidth = 1
-  )+
+  geom_vline(xintercept = observed_q,linewidth = 1,linetype = "dashed") +
+  geom_vline(xintercept = c(bootstrap_ci$lower, bootstrap_ci$upper),linewidth = 1)+
   labs(
     x = "Bootstrap in 25% quantiles",
     y = "Number of bootstrap samples",
     title = "Bootstrap distribution using Percentile Method",
-    subtitle = "Dashed line shows the observed difference"
-  ) +
+    subtitle = "Dashed line shows the observed difference") +
   theme_minimal()
 
 q3plot2 <- ggplot(bootstrap_results, aes(x = boot_q)) +
   geom_histogram(boundary = 0, binwidth = 0.025) +
-  geom_vline(
-    xintercept = observed_q,
-    linewidth = 1,
-    linetype = "dashed"
-  ) +
-  geom_vline(
-    xintercept = c(bootstrap_se_ci$lower, bootstrap_se_ci$upper),
-    linewidth = 1
-  )+
+  geom_vline(xintercept = observed_q,linewidth = 1,linetype = "dashed") +
+  geom_vline(xintercept = c(bootstrap_se_ci$lower, bootstrap_se_ci$upper),linewidth = 1)+
   labs(
     x = "Bootstrap in 25% quantiles",
     y = "Number of bootstrap samples",
@@ -756,7 +653,6 @@ q3plot2 <- ggplot(bootstrap_results, aes(x = boot_q)) +
   theme_minimal()
 q3plot1
 q3plot2
-
 ```
 
 
@@ -773,13 +669,8 @@ In this sample, 25% of action films had an ROI of 0.576 or lower. We are 95% con
 ## Task 4 {#sec-task-4}
 
 ```{r}
-
 task4_data <- task_1_data |> 
-mutate(
-    flop = case_when(roi < 1 ~ "Flop",
-                    TRUE ~ "Not flop"),
-    flop = factor(flop, levels = c("Not flop", "Flop"))
-  )
+mutate(flop = factor(case_when(roi < 1 ~ "Flop",TRUE ~ "Not flop"),levels = c("Not flop", "Flop"))) 
 ```
 
 The new flop variable only has two possible outcomes, which means it can be modeled by a Bernoulli distribution, where the parameter p measures the probability that a move is a flop. Hence, logistic regression is the appropriate choice as the log function $\log\left(\frac{p_i}{1 - p_i}\right)$ ensures the predicted probabilities remain between 0 and 1. The linear regression is not suitable as it assumes outcomes are continuous and normally distributed, while the flop variable only takes 0 and 1. Poisson regression is also not suitable as it is used when the outcome is a count with no upper limit. 
@@ -797,13 +688,14 @@ freq_logistic_model <- glm(
   family = binomial,
   data = task4_data
 )
-
 ```
 
 ```{r, eval = FALSE}
 #move to appendix
 summary(freq_logistic_model)
 ```
+
+
 #### Frequentist Regression Equation
 
 $$
@@ -837,14 +729,13 @@ bayes_logistic <- brm(
 
 ```
 
-```{r, eval = FALSE}
-#remove
-summary(bayes_logistic)
-plot(bayes_logistic) #remove
-```
 #### Bayesian Regression Equation
 
 Weakly informative priors were placed on the log-odds scale: Normal(0, 1.5) for the intercept and Normal(0, 1) for each slope.
+```{r, eval = FALSE}
+summary(bayes_logistic)
+```
+
 $$
 \log \left( \frac{\hat{p}_i}{1-\hat{p}_i} \right)
 =
@@ -858,28 +749,27 @@ $$
 - 0.50 \text{cast size}_i.
 $$
 
-```{r}
-#confidence and credible interval comparison
+#### Confidence and Credible Interval Comparison
 
+```{r}
 tab_model(freq_logistic_model, bayes_logistic)
 ```
-
-
 Using the 5% significant level, franchise status, cast size, and the Animation, Comedy and Horror genres are significantly associated with the ods of a film flopping. The Drama genre and Log budget coefficient are not significantly associate with the odds of a movie flopping due to the p values being greater than the significant level after adjusting for other predictors. 
 
-Coefficient Odd ratio interpretation:
-Animation (frequentist OR = 0.51; Bayesian OR = 0.53): Animated films have about half the odds of flopping compared with Action films.
-Comedy (OR = 0.72; 0.74): Comedies have about 26–28% lower odds of flopping than Action films.
-Drama (OR = 1.00; 1.02): There is no meaningful difference in the odds of flopping between dramas and Action films.
-Horror (OR = 0.33; 0.35): Horror films have about 65–67% lower odds of flopping than Action films.
-Original (OR = 4.10; 3.71): Original films have about 3.7–4.1 times the odds of flopping compared with franchise films.
-log budget z (OR = 0.98; 0.98): A one standard deviation increase in log budget is associated with almost no change in the odds of flopping.
-cast size z (OR = 0.61; 0.61): A one standard deviation increase in cast size is associated with odds of flopping about 0.61 times as large, a 39% decrease.
+The coefficient odds ratio (OR) interpretation as follows:
+
+- Animation (frequentist OR = 0.51, Bayesian OR = 0.53): Animated films have about half the odds of flopping compared with Action films.
+- Comedy (OR = 0.72, 0.74): Comedies have about 26–28% lower odds of flopping than Action films.
+- Drama (OR = 1.00, 1.02): There is no meaningful difference in the odds of flopping between dramas and Action films.
+- Horror (OR = 0.33, 0.35): Horror films have about 65–67% lower odds of flopping than Action films.
+- Original (OR = 4.10, 3.71): Original films have about 3.7–4.1 times the odds of flopping compared with franchise films.
+- Log budget (z) (OR = 0.98, 0.98): A one standard deviation increase in log budget is associated with almost no change in the odds of flopping.
+- Cast size (z) (OR = 0.61, 0.61): A one standard deviation increase in cast size is associated with a 39% decrease of odds of flopping.
 
 For original films, the 95% confidence interval for the odds ratio is [2.28, 8.16] and the 95% credible interval is [2.18, 6.65]. For cast size, the intervals are [0.52, 0.70] and [0.52, 0.71]. The cast size intervals are almost identical as the large sample size increases the weight of the data compared the weakly informative prior. The Original intervals differ more where the credible interval is narrower and closer to 1 because the Normal(0, 1) prior shrinks the coefficient. It is noteworthy that confidence intervals calculate the true OR in 95% of repeated samples while the credible interval uses the model, priors and data to calculate the posterior probability that the true OR lies within the interval.
 
 
-Tested Posterior probability statement: Calculate the posterior probability that the odds ratio for log budget is greater than 1.2 (a 20% increase in the odds of a flop) or less than 0.8 (a 20% decrease).
+#### Tested Posterior probability statement: Calculate the posterior probability that the odds ratio for log budget is greater than 1.2 (20% increase in the odds of a flop) or less than 0.8 (20% decrease).
 ```{r}
 draws4 <- as_draws_df(bayes_logistic)
 t4mean1 <- mean(exp(draws4$b_log_budget.z) > 1.2) |> round(4) |>   format(scientific = FALSE)
@@ -896,15 +786,12 @@ task4_data2 <- task4_data |>
   mutate(
     Prob_flop = colMeans(posterior_epred(bayes_logistic)),
     Pred_flop = factor(ifelse(Prob_flop > flop_rate, "Flop", "Not flop"),
-                       levels = c("Not flop", "Flop"))
-  )
+                       levels = c("Not flop", "Flop")))
 
 conf_mat <- function(actual, prob, threshold = 0.5) {
   table(
     Predicted = factor(ifelse(prob > threshold, "Flop", "Not flop"), levels = c("Not flop", "Flop")),
-    Actual = factor(actual, levels = c("Not flop", "Flop"))
-  )
-}
+    Actual = factor(actual, levels = c("Not flop", "Flop")))}
 
 class_metrics <- function(cm) {
   TP <- cm["Flop", "Flop"]; TN <- cm["Not flop", "Not flop"]
@@ -917,28 +804,24 @@ class_metrics <- function(cm) {
     Specificity = TN / (TN + FP),
     Precision = precision,
     F1 = 2 * precision * sensitivity / (precision + sensitivity)
-  )
-}
-# Confusion matrix
+  )}
+
 conf_mat(task4_data2$flop, task4_data2$Prob_flop, threshold = flop_rate)
 ```
 
+#### Sensitivity Analysis of Risk Threshold
 ```{r}
-#threshold
-
 thresholds <- c(0.5, 0.4, 0.3, flop_rate, 0.1)
 
 lapply(thresholds, function(t) {
   class_metrics(conf_mat(task4_data2$flop, task4_data2$Prob_flop, threshold = t)) |> 
-    mutate(Threshold = t)
-}) |> 
-  bind_rows() |> 
-  relocate(Threshold)
+    mutate(Threshold = t)}) |> 
+  bind_rows() |> relocate(Threshold) |> gt()
 ```
 
 As only 26% of films were flops, a 0.5 threshold predicts no flops at all (sensitivity of 0), so the model is useless at this threshold because flops are not flagged. A threshold of 0.4 identifies only 6% of flops, which is too low given that approving a film that flops costs far more than rejecting a film that would have succeeded financially. Lowering the threshold to 0.1 catches 97% of flops but flags almost every film, however the specificity of 0.10 and accuracy of 0.33 would not approve enough safe films. At a threshold of 0.26, the model correctly identifies 76% of flops (sensitivity 0.76), but only 48% of non-flops are correctly cleared (specificity 0.48), and only 34% of flagged films actually flop (precision 0.34). Overall accuracy falls from 0.74 to 0.55, which is expected when prioritising the rarer outcome. A threshold of 0.3 gives a more even balance between sensitivity (0.61) and specificity (0.64), but 0.26 is preferred because its higher sensitivity catches more flops, where approving flops is the more expensive mistake.
 
-#### Hypothetical Models
+#### Hypothetical Film Pitch Test
 
 ```{r}
 
@@ -962,12 +845,8 @@ pitch_pred <- pitches |>
     Prob_flop = colMeans(ep_pitch),
     Lower = apply(ep_pitch, 2, quantile, probs = 0.025),
     Upper = apply(ep_pitch, 2, quantile, probs = 0.975),
-    Flagged = ifelse(Prob_flop > flop_rate, "Flop risk", "Not flagged")
-  )
-
+    Flagged = ifelse(Prob_flop > flop_rate, "Flop risk", "Not flagged"))
 pitch_pred |> gt()
-
-
 ```
 The model estimates the chance that a film will flop based on its genre, cast size, budget, and whether it is a franchise or an original. For each pitch, it gives a risk estimate and a range that we can be 95% confident contains the true flop risk. Since 26% of films in our data flopped, any pitch with a higher estimated risk is flagged. For example, pitch B is flagged with an above-average 28% chance of flopping, and should therefore not be greenlit. Pitch A has a low 10% chance of flopping and should be greenlit. Pitch C’s 22% chance is close to the average, so it should be greenlit with caution. Because our cut-off flags any film with above-average risk, Pitch C should still be reasonable to produce.
 
