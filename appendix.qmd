@@ -1,9 +1,8 @@
 ---
-title: Assignment-2-Appendix
-author: Group-036
 format: pdf
 ---
 
+# Appendix
 ## Group number - 036
 ## Members: 
 1. Aryaman Dhindsa - 35683422
