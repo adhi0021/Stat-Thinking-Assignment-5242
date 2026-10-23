@@ -69,13 +69,13 @@ task_1_data <- data |>
   )
 ```
 
-This is a high-level overview of the financial health and composition of the studios historical slate.
+This section provides a high-level overview of the financial health and composition of the studio’s historical slate.
 
-Some cleaning has been done to prepare the data for this report. Some films in the dataset had missing or unrealistically low values for budget or revenue. Most dollar amounts in the dataset have been entered as the whole figure, but in some cases it appears they have been recorded as hundreds of thousands or millions of dollars. For example, *Escape from Tomorrow* has a recorded budget of 650 in the dataset. The film's actual reported budget was $650,000.
+Some cleaning was required to address missing or implausibly low budget and revenue values. While most dollar amounts were recorded in full, some appear to have been entered in hundreds of thousands or millions. For example, *Escape from Tomorrow* has a recorded budget of 650, compared with its actual reported budget of $650,000.
 
-Given the large initial size of the dataset (no. of films = `r nrow(data)`) we decided to filter out any films with budget or revenue amounts less than 1000 to cut films with missing or implausible values. We also removed any films with a reported budget higher than 550 million USD (the largest budget ever reported for a film). The franchise tag is not used for any film pre-1974 even when films *were* part of a franchise (like James Bond); given the importance of comparison between Original and Franchise films to this report we have also filtered for only films released in 1974 or later.
+Given the initial dataset size (\(n = `r nrow(data)` \)), we excluded films with budgets or revenues below 1,000 and budgets above USD 550 million, the largest reported film budget. We also excluded films released before 1974, as franchise labels were never applied to films before then, making comparisons between Original and Franchise films impossible.
 
-This left us with `r (nrow(task_1_data))` films to analyse, of which franchise films made up `r 100*(task_1_data |> filter(franchise_status == "Franchise") |> nrow())/nrow(task_1_data)`% of the films in our cleaned dataset, vs the `r 100*(data |> filter(franchise_status == "Franchise") |> nrow())/nrow(data)`% they made up in the original dataset. We are happy that this does not represent a large enough change in the composition of our data to skew our analysis. 
+This left `r nrow(task_1_data)` films for analysis. Franchise films accounted for `r round(100*(task_1_data |> filter(franchise_status == "Franchise") |> nrow())/nrow(task_1_data), 1)`% of the cleaned dataset, compared with `r round(100*(data |> filter(franchise_status == "Franchise") |> nrow())/nrow(data), 1)`% of the original. We consider this difference small enough that it is unlikely to meaningfully skew our analysis.
 
 ### Summary of data
 
@@ -370,8 +370,6 @@ ggplot(status_counts, aes(x = release_year, y = n, fill = franchise_status)) +
 
 ### Summary
 
-From the plots in this section, and given what we know about how films are coded (@nte-franchise-coding), we can draw some conclusions already.
-
 Sequels are generally more expensive to make than original films, and are generally a safer bet than original films; they have a higher ROI on average, and are less likely to fall below an ROI of 1 (meaning they generally at least make their money back) (@tbl-slate-overall-summary and @fig-genre-plots). However, original films have much higher variability in ROI and may represent a riskier but more lucrative investment strategy.
 
 The three genres that have consistently seen the most films released over the last 25+ years are Action, Comedy and Drama films (@fig-genre-line-chart-1), all of which Meridian is invested in. 
@@ -443,11 +441,11 @@ point_est_t2 <- t2_sum_table$median[t2_sum_table$franchise_status == "Franchise"
 ```
 
 
-As seen in @fig-basic-boxplots and @tbl-slate-overall-summary, Original films have a lower median budget than Franchise films in the dataset. Our next step is to determine how confident we are that this is a real difference. To do this, we will use bootstrapping to find a 95% interval estimate for the difference in median budget between the two groups. Bootstrapping simulates repeated samples from a population, allowing us to better quantify the uncertainty in the data using only the data we have.
+As shown in @fig-basic-boxplots and @tbl-slate-overall-summary, Original films have a lower median budget than Franchise films. To assess the uncertainty in this difference, we use bootstrapping to estimate a 95% confidence interval for the difference in median budgets.
 
-To perform a single bootstrap, we sample n random observations from the dataset, where n is the total number of observations in the original dataset; in this case, n = `r nrow(task_1_data)`. Then, to quote Minh from Seminar 6, *"probably the word with replacement is probably the most important part with bootstrapping"*. So when sampling, we replace any sampled observation back into the dataset, allowing any individual observation to be sampled multiple times. This is what creates variation between our bootstrap samples and approximates sampling uncertainty.
+Each bootstrap samples \(n\) observations with replacement, where \(n = `r nrow(task_1_data)`\), the size of the original dataset. As Minh noted in Seminar 6, *“probably the word with replacement is probably the most important part with bootstrapping”*. Replacing each sampled observation allows it to be selected multiple times, introducing variation between samples and approximating sampling uncertainty.
 
-We then create 5000 unique bootstraps, and can calculate the difference in median budgets for each one. By taking the 2.5th and 97.5th percentiles of these bootstrap estimates, we can calculate a 95% confidence interval for the dataset. The point estimate of the data is `r point_est_t2/1e6` million USD.
+We generate 5,000 bootstrap samples and calculate the difference in median budgets for each. The 2.5th and 97.5th percentiles of these estimates form the 95% confidence interval. The observed difference in median budgets is `r point_est_t2/1e6` million USD.
 
 ```{r}
 perform_bootstrap <- function() {
@@ -476,9 +474,7 @@ bootstrap_results <- map_dfr(
 ci_95 <- quantile(bootstrap_results$diff_median, probs = c(0.025, 0.975))
 ```
 
-The bootstrapped 95% confidence interval of the data has a lower bound of `r ci_95[1]/1e6` million USD and an upper bound of `r ci_95[2]/1e6` million USD. Our bootstrapped confidence interval is entirely above zero, suggesting Franchise films do have a higher median budget than Original films at a conventional 5% significance level. The point estimate we calculated of `r point_est_t2/1e6` million USD falls within the range of values covered by our estimated confidence interval, suggesting it is plausible under the bootstrapped distribution.
-
-@fig-bootstrap-hist provides a graphical view of the bootstrapped distribution.
+The bootstrapped 95% confidence interval ranges from `r ci_95[1]/1e6` to `r ci_95[2]/1e6` million USD. As the interval lies entirely above zero, the results suggest that Franchise films have a higher median budget than Original films at the conventional 5% significance level. The point estimate of `r point_est_t2/1e6` million USD falls within the interval, making it consistent with the bootstrapped distribution. @fig-bootstrap-hist illustrates this distribution.
 
 ```{r}
 #| label: fig-bootstrap-hist
@@ -505,9 +501,9 @@ In more words: kind of. While there is a real difference in median budget betwee
 
 ### Advice
 
-There is one more thingwe believe Meridian should consider when making decisions about investment strategy for the next decade. In @fig-status-area-chart-2, we saw that there was a peak in the number of Franchise films as a percentage of the total slate during the late 80s/early 90s; by the late 1990s, that trend had reversed completely and Franchise releases were at their lowest share of the total slate since franchise status began to be tracked in the dataset. In the last few years, we have seen a rise in Franchise film releases as a percentage of the total slate to the point they are now nearly level with that earlier peak. Should this peak follow similar trends, the next decade may see a crash in Franchise releases as audiences again experience Franchise fatigue and demand Original films.
+Meridian should consider the cyclical pattern of Franchise releases when planning its investment strategy for the next decade. As shown in @fig-status-area-chart-2, Franchise films peaked as a share of the total slate in the late 1980s and early 1990s, before falling to their lowest recorded share by the late 1990s. Their share has since risen to nearly match the earlier peak. If this pattern repeats, the next decade could see another decline as audiences experience Franchise fatigue and demand Original films.
 
-Additionally, looking at both @fig-basic-boxplots-2 and @fig-genre-plots-4 illustrates the high potential ROI of Original films across Meridian’s focus genres, where an ROI below 1 indicates that a film failed to recoup its investment. Horror stands out as a particularly promising genre, combining the second-lowest flop rate with substantial potential for high returns. This suggests that Original horror films could offer Meridian an attractive balance between investment risk and profit potential.
+Additionally, @fig-basic-boxplots-2 and @fig-genre-plots-4 highlight the ROI potential of Original films across Meridian’s focus genres. Horror is particularly promising, combining the second-lowest flop rate with substantial potential returns. Original horror films may therefore offer an attractive balance between investment risk and profitability.
 
 As such, we recommend that Meridian strategically prioritise Original horror films in its 2017 release slate, while gradually experimenting with Original films in other high-potential genres. By carefully monitoring performance and adjusting budget allocations in response to observed returns, Meridian can progressively refine its investment strategy, mitigate the risks associated with Franchise fatigue, and improve its potential for sustained profitability over the next decade.
 
@@ -671,6 +667,7 @@ In this sample, 25% of action films had an ROI of 0.576 or lower. We are 95% con
 
 ## Task 4 {#sec-task-4}
 
+### Defining a flop and justifying logistic regression
 ```{r}
 task4_data <- task_1_data |> 
 mutate(flop = factor(case_when(roi < 1 ~ "Flop",TRUE ~ "Not flop"),levels = c("Not flop", "Flop"))) 
@@ -698,20 +695,22 @@ freq_logistic_model <- glm(
 summary(freq_logistic_model)
 ```
 
+### Comparing two methods of logistic regression
 
 #### Frequentist Regression Equation
 
 $$
+\begin{aligned}
 \log \left( \frac{\hat{p}_i}{1-\hat{p}_i} \right)
-=
--2.241
+={}& -2.241
 - 0.678 \text{Animation}_i
-- 0.327 \text{Comedy}_i
-- 0.001 \text{Drama}_i
+- 0.327 \text{Comedy}_i \\
+&- 0.001 \text{Drama}_i
 - 1.100 \text{Horror}_i
-+ 1.411 \text{Original}_i
-- 0.017 \text{log budget}_i
++ 1.411 \text{Original}_i \\
+&- 0.017 \text{log budget}_i
 - 0.502 \text{cast size}_i
+\end{aligned}
 $$
 
 ```{r, include=FALSE}
@@ -739,25 +738,28 @@ summary(bayes_logistic)
 ```
 
 $$
+\begin{aligned}
 \log \left( \frac{\hat{p}_i}{1-\hat{p}_i} \right)
-=
--2.17
+={}& -2.17
 - 0.63 \text{Animation}_i
-- 0.30 \text{Comedy}_i
-+ 0.02 \text{Drama}_i
+- 0.30 \text{Comedy}_i \\
+&+ 0.02 \text{Drama}_i
 - 1.05 \text{Horror}_i
-+ 1.32 \text{Original}_i
-- 0.02 \text{log budget}_i
++ 1.32 \text{Original}_i \\
+&- 0.02 \text{log budget}_i
 - 0.50 \text{cast size}_i.
+\end{aligned}
 $$
 
 #### Confidence and Credible Interval Comparison
 
 ```{r}
-#tab_model(freq_logistic_model, bayes_logistic)
+#| include: false
+
+tab_model(freq_logistic_model, bayes_logistic)
 ```
 
-Using the 5% significant level, franchise status, cast size, and the Animation, Comedy and Horror genres are significantly associated with the ods of a film flopping. The Drama genre and Log budget coefficient are not significantly associate with the odds of a movie flopping due to the p values being greater than the significant level after adjusting for other predictors. 
+Using the 5% significant level, franchise status, cast size, and the Animation, Comedy and Horror genres are significantly associated with the odds of a film flopping. The Drama genre and Log budget coefficient are not significantly associated with the odds of a movie flopping due to the p values being greater than the significant level after adjusting for other predictors. 
 
 The coefficient odds ratio (OR) interpretation as follows:
 
@@ -783,7 +785,12 @@ Given the data and our prior, the probability that a 1 standard deviation increa
 
 #### Confusion Matrix Analysis
 
+See @tbl-confusion-matrix.
+
 ```{r}
+#| label: tbl-confusion-matrix
+#| tbl-cap: Confusion matrix showing actual vs predicted flop rate
+
 flop_rate <- mean(task4_data$flop == "Flop")
 
 task4_data2 <- task4_data |> 
@@ -794,8 +801,16 @@ task4_data2 <- task4_data |>
 
 conf_mat <- function(actual, prob, threshold = 0.5) {
   table(
-    Predicted = factor(ifelse(prob > threshold, "Flop", "Not flop"), levels = c("Not flop", "Flop")),
-    Actual = factor(actual, levels = c("Not flop", "Flop")))}
+    Predicted = factor(
+      ifelse(prob > threshold, "Flop", "Not flop"),
+      levels = c("Not flop", "Flop")
+    ),
+    Actual = factor(
+      actual,
+      levels = c("Not flop", "Flop")
+    )
+  )
+}
 
 class_metrics <- function(cm) {
   TP <- cm["Flop", "Flop"]; TN <- cm["Not flop", "Not flop"]
@@ -810,11 +825,26 @@ class_metrics <- function(cm) {
     F1 = 2 * precision * sensitivity / (precision + sensitivity)
   )}
 
-conf_mat(task4_data2$flop, task4_data2$Prob_flop, threshold = flop_rate)
+conf_mat(task4_data2$flop, task4_data2$Prob_flop, threshold = flop_rate) |>
+  as.data.frame() |>
+  tidyr::pivot_wider(
+    names_from = Actual,
+    values_from = Freq,
+    values_fill = 0
+  ) |>
+  gt(rowname_col = "Predicted") |>
+  tab_spanner(
+    label = "Actual",
+    columns = c(`Not flop`, Flop)
+  ) |>
+  tab_stubhead(label = "Predicted")
 ```
 
 #### Sensitivity Analysis of Risk Threshold
 ```{r}
+#| label: tbl-sensitivity-analysis
+#| tbl-cap: Sensitivity analysis of model at varying thresholds
+
 thresholds <- c(0.5, 0.4, 0.3, flop_rate, 0.1)
 
 lapply(thresholds, function(t) {
@@ -828,6 +858,8 @@ As only 26% of films were flops, a 0.5 threshold predicts no flops at all (sensi
 #### Hypothetical Film Pitch Test
 
 ```{r}
+#| label: tbl-pitch-predictions
+#| tbl-cap: Using our model to asses the flop probability of 3 hypothetical pitches
 
 pitches <- tibble(
   pitch = c("Pitch A", "Pitch B", "Pitch C"),
@@ -850,7 +882,37 @@ pitch_pred <- pitches |>
     Lower = apply(ep_pitch, 2, quantile, probs = 0.025),
     Upper = apply(ep_pitch, 2, quantile, probs = 0.975),
     Flagged = ifelse(Prob_flop > flop_rate, "Flop risk", "Not flagged"))
-pitch_pred |> gt()
+    
+pitch_pred |> 
+  mutate(budget = budget / 1e6) |> 
+  dplyr::select(
+    Pitch = pitch,
+    Genre = primary_genre,
+    Type = franchise_status,
+    `Budget (USD millions)` = budget,
+    `Cast size` = cast_size,
+    `Flop risk` = Prob_flop,
+    `Lower 95%` = Lower,
+    `Upper 95%` = Upper,
+    Decision = Flagged
+  ) |> 
+  gt() |> 
+  fmt_number(
+    columns = `Budget (USD millions)`,
+    decimals = 1
+  ) |> 
+  fmt_number(
+    columns = `Cast size`,
+    decimals = 0
+  ) |> 
+  fmt_percent(
+    columns = c(`Flop risk`, `Lower 95%`, `Upper 95%`),
+    decimals = 1
+  ) |>
+  tab_options(
+    table.width = pct(100),
+    table.font.size = px(8)
+  )
 ```
 
 The model estimates the chance that a film will flop based on its genre, cast size, budget, and whether it is a franchise or an original. For each pitch, it gives a risk estimate and a range that we can be 95% confident contains the true flop risk. Since 26% of films in our data flopped, any pitch with a higher estimated risk is flagged. For example, pitch B is flagged with an above-average 28% chance of flopping, and should therefore not be greenlit. Pitch A has a low 10% chance of flopping and should be greenlit. Pitch C’s 22% chance is close to the average, so it should be greenlit with caution. Because our cut-off flags any film with above-average risk, Pitch C should still be reasonable to produce.
