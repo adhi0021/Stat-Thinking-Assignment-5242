@@ -1,15 +1,14 @@
 ---
 title: Assignment-2-Appendix
 author: Group-036
-format: html
+format: pdf
 ---
 
 ## Group number - 036
 ## Members: 
-1. Aryaman Dhindsa
-2. Alex 
-3. Phi 
-(Sorry guys i am not good with names and spelling ;-)
+1. Aryaman Dhindsa - 35683422
+2. Alexander Delamer - 36749346
+3. Phi Vuong - 36127841
 
 # Link to Github Repo
 This is the link to our [github repo](https://github.com/adhi0021/Stat-Thinking-Assignment-5242) so that you can see we contributed equally to the project.
@@ -27,7 +26,7 @@ This is the link to our [github repo](https://github.com/adhi0021/Stat-Thinking-
 | **Task 3** | Phi | Aryaman, Alex | 22th October | Final
 | **Task 4** | Phi, Aryaman, Alex | Phi, Aryaman, Alex | 23th October | Final
 | **Appendix** | Aryaman | Phi, Alex | 22th October | Draft
-| **Final merging, formatting & reproducibility check** | - | - | 23th October | Final
+| **Final merging, formatting & reproducibility check** | Alex | Phi, Aryaman | 23th October | Final
 | **Appendix** | Aryaman | Phi, Alex | 23th October | Final
 
 
@@ -37,18 +36,18 @@ This section be seen on github commit history and every member of the team confi
 
 | Member name | Specific tasks performed | Hours contributed (approx.) |
 |:---|:---|:---|
-| Aryaman | | |
-| Alex | | |
-| Phi | | |
+| Alex | Task-1, Task-3,4 check, formatting and final checks | 17 hrs|
+| Aryaman | Task-2, Task-1,3,4 check, Appendix| 16 hrs |
+| Phi | Task-3 and 4, Task-2 check, final checks | 18 hrs |
 
 
 # Cross-review table
 
 By signing below, you certify that you have reviewed the work of your teammates and that the final report represents a unified effort.
 
-| Task | Reviewed by (name of primary Reviewer) | Key feedback provided |
+| Task | Reviewed by | Key feedback provided |
 |:---|:---|:---|
-| **Task 1** | | |
-| **Task 2** | | |
-| **Task 3** | | |
-| **Task 4** | | |
+| **Task 1** | Aryaman | Asked Alex to shorten the data description and cleaning process, additionally asked him to make some helpful plots that i can reference in task-2|
+| **Task 2** | Phi | Change some of the formatting and task description, change the task flow and plots to match task-1|
+| **Task 3** | Alex, Aryaman | Include more inline codes to cut some code chunks in order to not exceed 3 page limit, Add more comments in code chunks and format according to the task-1 and task-2|
+| **Task 4** | Alex, Aryaman | Include more inline codes to cut some code chunks in order to not exceed 3 page limit, add some statement describing the differences between frequentist and baysian modeling |
