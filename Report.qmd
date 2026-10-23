@@ -2,7 +2,6 @@
 title: Assignment-2
 author: Group-036
 format: 
-  html: default
   pdf: 
     number-sections: true
 execute:
@@ -283,9 +282,7 @@ task_1_data |>
 
 ### Slate composition over time
 
-We wanted to look at how the composition of the historical slate by genre has changed over time, with a specific focus on the genres Meridian is interested in.
-
-Worth noting is that although we have some data from 2015 on, it is not complete data and is therefore not included in @fig-genre-line-chart as it skews visual temporal analysis. It is unclear if the data we have from 2014 is fully complete, but it has been included until we are given a compelling reason to exclude it.
+Although we have some data from 2015 on, it is not complete data and is therefore not included in @fig-genre-line-chart as it skews visual temporal analysis. It is unclear if the data we have from 2014 is fully complete, but it has been included until we are given a compelling reason to exclude it.
 
 ```{=latex}
 \begingroup
@@ -295,10 +292,10 @@ Worth noting is that although we have some data from 2015 on, it is not complete
 
 ```{r}
 #| label: fig-genre-line-chart
-#| fig-cap: Line charts showing changing composition of slate over time; film release dates have been aggregated into 5 year blocks to make trends more visible
+#| fig-cap: Line charts showing changing composition of slate over time
 #| layout-ncol: 2
 #| fig-subcap:
-#|  - Line chart showing trend in genre releases over time; the 5 genres Meridian is focused on are highlighted
+#|  - Line chart showing trend in genre releases over time; the 5 genres Meridian is focused on are highlighted; film release dates have been aggregated into 5 year blocks to make trends more visible
 #|  - Smoothed line plot showing median budget for Original vs Franchise films over the last ~50 years
 
 genre_counts <- task_1_data |> 
@@ -383,8 +380,14 @@ There was a significant spike in the relative amount of Franchise films being re
 
 ## Task 2 {#sec-task-2}
 
-Budget data are often skewed, and the median is often more meaningful than the mean when describing a budget for typical franchise and original categories. 
-Here I will be using bootstraping to find 95% interval estimate for the difference in median budget between the two groups. As bootstraping simulates repeated samples from a population like the csv provided here, it can help us to describe the uncertainity in the data.
+@fig-genre-plots suggests that the budget and ROI data we have is heavily right-skewed. We should first make sure that Simpson's paradox isn't at play, and that these distributions are accurate when the films in the dataset are grouped by franchise status.   
+
+### Full Budget and ROI distributions of Franchise and Original films
+
+@fig-basic-boxplots shows that yes, this right-skewed distribution does hold when we group films by franchise status. This will make the median more useful than the mean when comparing budgets, as it more accurately represents the size of budget we might expect a film to have based on genre or franchise status.
+
+The distributions and comparisons between groups follow what we might expect from our previous look at the summary statistics of the dataset (@tbl-slate-overall-summary). Franchise films have a higher median budget and ROI but Original films exhibit higher kurtosis in both plots, with more pronounced tails and a greater likelihood of extreme values. Both franchise status categories are bounded at 0 in both statistics as we would expect, as we can't have a negative budget or ROI. The much tighter clustering of Franchise film ROIs above 1 indicates that any money invested by the studio into a higher budget Franchise film will likely be earned back, while the lower quartile for Original film ROIs sits at 1, meaning at least a quarter of all Original films in the dataset did not make back their budget.
+
 
 ```{r}
 #| label: fig-basic-boxplots
@@ -416,17 +419,17 @@ task_1_data |>
   )
 ```
 
-The @fig-basic-boxplots-1 shows differnce in median of sequals and originals using a boxplot. The median budget of franchise is higher than the original (The data analysed here is from 1974 and later as discussed in @sec-task-1) which raises the concern of the leadership about the budget. However in @fig-basic-boxplots-2, the difference between ROI's of both the categories shows a much needed aspect to increase the overall profits of the production house.  
+
+### Calculating confidence interval for differences in median budgets
+
+
 
 ```{r}
-clean_data_t2 <- data |>
+clean_data_t2 <- task_1_data |>
   dplyr::select(franchise_status,budget) |>
-  mutate(across(where(is.numeric), \(x) na_if(x, 0))) |> 
   mutate(
     franchise_status = factor(franchise_status)
-  ) |> 
-  filter(!is.na(franchise_status), !is.na(budget))
-
+  ) 
 
 t2_sum_table <- clean_data_t2 |> 
   group_by(franchise_status) |> 
@@ -435,16 +438,18 @@ t2_sum_table <- clean_data_t2 |>
     median = median(budget, na.rm = TRUE),
     sd = sd(budget, na.rm = TRUE)
   )
-```
 
-```{r}
 point_est_t2 <- t2_sum_table$median[t2_sum_table$franchise_status == "Franchise"] - t2_sum_table$median[t2_sum_table$franchise_status == "Original"]
 ```
 
-As interpreted from the @fig-basic-boxplots and the @tbl-slate-overall-summary, the 'original' franchise status have the lower median which shows that the production budgets are biased towards the 'franchise' category as the median ROI in not much in case of originals. To confirm this we will use bootstraping method that takes n number of samples, here 5000 from the dataset with repeated values as TRUE so that it can include random observations multiple times. The reason of this bootstrapping is to confirm the baised selection of budget allocation by the leadership. The point estimate of the data is `r point_est_t2` which we will use to confirm if bootstarped estimate is similar or not. If yes, then the budget allocation is truely are leaned towards 'franchise' category. 
+
+As seen in @fig-basic-boxplots and @tbl-slate-overall-summary, Original films have a lower median budget than Franchise films in the dataset. Our next step is to determine how confident we are that this is a real difference. To do this, we will use bootstrapping to find a 95% interval estimate for the difference in median budget between the two groups. Bootstrapping simulates repeated samples from a population, allowing us to better quantify the uncertainty in the data using only the data we have.
+
+To perform a single bootstrap, we sample n random observations from the dataset, where n is the total number of observations in the original dataset; in this case, n = `r nrow(task_1_data)`. Then, to quote Minh from Seminar 6, *"probably the word with replacement is probably the most important part with bootstrapping"*. So when sampling, we replace any sampled observation back into the dataset, allowing any individual observation to be sampled multiple times. This is what creates variation between our bootstrap samples and approximates sampling uncertainty.
+
+We then create 5000 unique bootstraps, and can calculate the difference in median budgets for each one. By taking the 2.5th and 97.5th percentiles of these bootstrap estimates, we can calculate a 95% confidence interval for the dataset. The point estimate of the data is `r point_est_t2/1e6` million USD.
 
 ```{r}
-
 perform_bootstrap <- function() {
   
   one_boot <- clean_data_t2 |> 
@@ -471,9 +476,9 @@ bootstrap_results <- map_dfr(
 ci_95 <- quantile(bootstrap_results$diff_median, probs = c(0.025, 0.975))
 ```
 
-The percentile bootstrap confidence interval of the data is `r ci_95[1]` and `r ci_95[2]`. The interval suggests that the population median difference is plausible between these values based on the data and bootstrap method.
+The bootstrapped 95% confidence interval of the data has a lower bound of `r ci_95[1]/1e6` million USD and an upper bound of `r ci_95[2]/1e6` million USD. Our bootstrapped confidence interval is entirely above zero, suggesting Franchise films do have a higher median budget than Original films at a conventional 5% significance level. The point estimate we calculated of `r point_est_t2/1e6` million USD falls within the range of values covered by our estimated confidence interval, suggesting it is plausible under the bootstrapped distribution.
 
-### Does it verify leadership concern?
+@fig-bootstrap-hist provides a graphical view of the bootstrapped distribution.
 
 ```{r}
 #| label: fig-bootstrap-hist
@@ -492,22 +497,20 @@ bootstrap_results |>
   )
 ```
 
-@fig-bootstrap-hist shows that the median difference is well above zero and similar to the point estimate which supports the concerns of the leadership of franchise slate absorbing much larger budgets than original slate.
-   
-Additionally from @sec-task-2 @fig-basic-boxplots-2, we can interpret that the originals have higher number of outliers that drastically increases the profits of the production houses but overall originals have a lower median ROI. 
+### Have we verified leadership's concern?
 
-### Summary
+In one word: yes.
 
-The median is the best way to summarise the budget data as they are always right skewed and using mean won't provide any acceptable information. We needed to know about the difference in median of the two facets of franchise status to confirm the concern of the leadership about the baised budget allocation towards franchises. By boostraping the median difference of the `franchise_status` categories and creating a histogram of it (@fig-bootstrap-hist) showed that the median difference is well above zero (near 18 Million) which confirms the concern about budget allocations prioritisation. 
-
-However, as stated in @sec-task-1, the sequels are much expensive to make than the originals and they have higher ROI than the originals, due to this reason the production houses are more inclined towards producing sequals as they have much better chance of creating profits than the originals. But from @sec-task-2 @fig-basic-boxplots-2, we can interpret that the originals have higher number of outliers that drastically increases the profits of the production houses. However, the median ROI in origianls is low hence producing originals seems risky.
+In more words: kind of. While there is a real difference in median budget between Franchise and Original films with the Franchise slate tending to absorb larger budgets, it would not be accurate to say that the Original slate is mostly full of low-budget projects. The median cost for a franchise film in the dataset is $40m, and based on our bootstrapped 95% confidence interval the median Original film has a budget between $8m - $23m lower than that. That means the median Original film is somewhere between ~25% and ~50% cheaper than the median Franchise film, and as seen in @fig-basic-boxplots-1, the most expensive Original films actually cost more than the most expensive Franchise films. Given the higher median cost of Franchise films and the stable ROI for the Franchise slate seen in @fig-basic-boxplots-2, leadership would be correct to assume that the Franchise slate is the *stable* part of studio revenue. But the variability in ROI for the Original slate combined with the fact that in absolute dollar value the median Original film does not represent a significantly smaller investment for a studio suggests that a hit Original film could easily generate a large percentage of studio revenue for an annual period.
 
 ### Advice
-The advice to the leadership is to focus on original movies that have high potential such as the genre that have the most profitable originals with lower risk such as horror for 2017 and gradually increase the budget allocation for them while comparing the profits generated by both categories simultaniously and changing or refining the new original story selection strategy and finding a optimised allocation stratergy that maximises the profits for the company. 
 
-According to @sec-task-1, @fig-genre-plots-4 shows the ROI of originals in Meridian's focus genre where less than 1 shows the movie was a flop or a disaster. The genre horror comes up at the top with second lowest flop rate and really high potential for a big profit.
+There is one more thingwe believe Meridian should consider when making decisions about investment strategy for the next decade. In @fig-status-area-chart-2, we saw that there was a peak in the number of Franchise films as a percentage of the total slate during the late 80s/early 90s; by the late 1990s, that trend had reversed completely and Franchise releases were at their lowest share of the total slate since franchise status began to be tracked in the dataset. In the last few years, we have seen a rise in Franchise film releases as a percentage of the total slate to the point they are now nearly level with that earlier peak. Should this peak follow similar trends, the next decade may see a crash in Franchise releases as audiences again experience Franchise fatigue and demand Original films.
 
-Choosing more originals from horror genre in the slots for 2017 releases carefully and strategically, provides more room for higher profits and gradually trying and testing with different genre, creating an optimal budget allocation for movies can increase the profits with a high margin. 
+Additionally, looking at both @fig-basic-boxplots-2 and @fig-genre-plots-4 illustrates the high potential ROI of Original films across Meridian’s focus genres, where an ROI below 1 indicates that a film failed to recoup its investment. Horror stands out as a particularly promising genre, combining the second-lowest flop rate with substantial potential for high returns. This suggests that Original horror films could offer Meridian an attractive balance between investment risk and profit potential.
+
+As such, we recommend that Meridian strategically prioritise Original horror films in its 2017 release slate, while gradually experimenting with Original films in other high-potential genres. By carefully monitoring performance and adjusting budget allocations in response to observed returns, Meridian can progressively refine its investment strategy, mitigate the risks associated with Franchise fatigue, and improve its potential for sustained profitability over the next decade.
+
 
 ## Task 3 {#sec-task-3}
 ### Part 1: Production Budget Modelling
@@ -712,7 +715,6 @@ $$
 $$
 
 ```{r, include=FALSE}
-library(brms)
 bayes_logistic <- brm(
   flop ~ primary_genre + franchise_status + log_budget.z + cast_size.z,
   data = task4_data,
@@ -752,8 +754,9 @@ $$
 #### Confidence and Credible Interval Comparison
 
 ```{r}
-tab_model(freq_logistic_model, bayes_logistic)
+#tab_model(freq_logistic_model, bayes_logistic)
 ```
+
 Using the 5% significant level, franchise status, cast size, and the Animation, Comedy and Horror genres are significantly associated with the ods of a film flopping. The Drama genre and Log budget coefficient are not significantly associate with the odds of a movie flopping due to the p values being greater than the significant level after adjusting for other predictors. 
 
 The coefficient odds ratio (OR) interpretation as follows:
@@ -775,6 +778,7 @@ draws4 <- as_draws_df(bayes_logistic)
 t4mean1 <- mean(exp(draws4$b_log_budget.z) > 1.2) |> round(4) |>   format(scientific = FALSE)
 t4mean2 <- mean(exp(draws4$b_log_budget.z) < 0.8) |>   format(scientific = FALSE)
 ```
+
 Given the data and our prior, the probability that a 1 standard deviation increase in log budget increases the odds of a flop by more than 20% is `r t4mean1`, and the probability that it decreases the odds by more than 20% is `r t4mean2`.
 
 #### Confusion Matrix Analysis
@@ -848,6 +852,7 @@ pitch_pred <- pitches |>
     Flagged = ifelse(Prob_flop > flop_rate, "Flop risk", "Not flagged"))
 pitch_pred |> gt()
 ```
+
 The model estimates the chance that a film will flop based on its genre, cast size, budget, and whether it is a franchise or an original. For each pitch, it gives a risk estimate and a range that we can be 95% confident contains the true flop risk. Since 26% of films in our data flopped, any pitch with a higher estimated risk is flagged. For example, pitch B is flagged with an above-average 28% chance of flopping, and should therefore not be greenlit. Pitch A has a low 10% chance of flopping and should be greenlit. Pitch C’s 22% chance is close to the average, so it should be greenlit with caution. Because our cut-off flags any film with above-average risk, Pitch C should still be reasonable to produce.
 
 However, the model cannot reliably predict whether an individual film will flop. It only uses four factors, which explain a small part of why films flop. Other factors, such as script quality, casting star power and production quality are likely to matter more but are difficult to measure objectively. The model also predicts general patterns in flop trends, which means past trends are not indicative of future outcomes. Hence, it should be used as a supplementary factor alongside industry expertise to evaluate the film. 
